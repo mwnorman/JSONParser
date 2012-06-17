@@ -10,10 +10,9 @@ public interface JSONParserTreeConstants
   public int JJTPAIR = 3;
   public int JJTFIELDNAME = 4;
   public int JJTSTRIPOFFQUOTES = 5;
-  public int JJTDECODEBACKSLASH = 6;
-  public int JJTARRAY = 7;
-  public int JJTELEMENTS = 8;
-  public int JJTVALUE = 9;
+  public int JJTARRAY = 6;
+  public int JJTELEMENTS = 7;
+  public int JJTVALUE = 8;
 
 
   public String[] jjtNodeName = {
@@ -23,10 +22,9 @@ public interface JSONParserTreeConstants
     "pair",
     "fieldName",
     "stripOffQuotes",
-    "decodeBackslash",
     "array",
     "elements",
     "value",
   };
 }
-/* JavaCC - OriginalChecksum=7748342472fa115c247487af66103579 (do not edit this line) */
+/* JavaCC - OriginalChecksum=cbb0825fc94ab7ee1bade61e77c65d57 (do not edit this line) */

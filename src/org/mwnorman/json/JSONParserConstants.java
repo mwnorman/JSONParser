@@ -19,36 +19,6 @@
  * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE
  * USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * string escape logic (BSD license):
- * Copyright 2003-2008 MicroNova (R)
- * All rights reserved.
- * Redistribution and use in source and binary forms, with or
- * without modification, are permitted provided that the following
- * conditions are met:
- *
- * Redistributions of source code must retain the above copyright
- * notice, this list of conditions and the following disclaimer.
- *
- * Redistributions in binary form must reproduce the above copyright
- * notice, this list of conditions and the following disclaimer in the
- * documentation and/or other materials provided with the distribution.
- *
- * Neither the name of MicroNova nor the names of its contributors
- * may be used to endorse or promote products derived from this
- * software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
  ******************************************************************************/
 package org.mwnorman.json;
 
@@ -63,62 +33,60 @@ public interface JSONParserConstants {
   /** End of File. */
   int EOF = 0;
   /** RegularExpression Id. */
-  int SINGLE_LINE_COMMENT_C_STYLE = 6;
+  int K_TRUE = 13;
   /** RegularExpression Id. */
-  int SINGLE_LINE_COMMENT_BASH_STYLE = 7;
+  int K_FALSE = 14;
   /** RegularExpression Id. */
-  int MULTI_LINE_COMMENT_C_STYLE = 8;
+  int K_NULL = 15;
   /** RegularExpression Id. */
-  int MULTI_LINE_COMMENT_HTML_STYLE = 9;
+  int O_OPENBRACE = 16;
   /** RegularExpression Id. */
-  int K_TRUE = 10;
+  int O_CLOSEBRACE = 17;
   /** RegularExpression Id. */
-  int K_FALSE = 11;
+  int O_OPENBRACKET = 18;
   /** RegularExpression Id. */
-  int K_NULL = 12;
+  int O_CLOSEBRACKET = 19;
   /** RegularExpression Id. */
-  int O_OPENBRACE = 13;
+  int O_COMMA = 20;
   /** RegularExpression Id. */
-  int O_CLOSEBRACE = 14;
+  int O_COLON = 21;
   /** RegularExpression Id. */
-  int O_OPENBRACKET = 15;
+  int O_DOT = 22;
   /** RegularExpression Id. */
-  int O_CLOSEBRACKET = 16;
+  int O_PLUS = 23;
   /** RegularExpression Id. */
-  int O_COMMA = 17;
+  int O_MINUS = 24;
   /** RegularExpression Id. */
-  int O_COLON = 18;
+  int DIGIT = 25;
   /** RegularExpression Id. */
-  int O_DOT = 19;
+  int NONZERO_DIGIT = 26;
   /** RegularExpression Id. */
-  int O_PLUS = 20;
+  int EXP = 27;
   /** RegularExpression Id. */
-  int O_MINUS = 21;
+  int NUMBER = 28;
   /** RegularExpression Id. */
-  int DIGIT = 22;
+  int INTEGER = 29;
   /** RegularExpression Id. */
-  int NONZERO_DIGIT = 23;
+  int FRACTIONAL_DIGITS = 30;
   /** RegularExpression Id. */
-  int EXP = 24;
+  int EXPONENT = 31;
   /** RegularExpression Id. */
-  int NUMBER = 25;
+  int DIGITS = 32;
   /** RegularExpression Id. */
-  int INTEGER = 26;
+  int QUOTED_STRING = 33;
   /** RegularExpression Id. */
-  int FRACTIONAL_DIGITS = 27;
+  int SINGLE_QUOTED_STRING = 34;
   /** RegularExpression Id. */
-  int EXPONENT = 28;
+  int IDENTIFIER = 35;
   /** RegularExpression Id. */
-  int DIGITS = 29;
-  /** RegularExpression Id. */
-  int SINGLE_QUOTED_STRING = 30;
-  /** RegularExpression Id. */
-  int QUOTED_STRING = 31;
-  /** RegularExpression Id. */
-  int UNQUOTED_STRING = 32;
+  int LETTER = 36;
 
   /** Lexical state. */
   int DEFAULT = 0;
+  /** Lexical state. */
+  int WithinMLC = 1;
+  /** Lexical state. */
+  int WithinMLH = 2;
 
   /** Literal token values. */
   String[] tokenImage = {
@@ -128,10 +96,13 @@ public interface JSONParserConstants {
     "\"\\n\"",
     "\"\\r\"",
     "\"\\f\"",
-    "<SINGLE_LINE_COMMENT_C_STYLE>",
-    "<SINGLE_LINE_COMMENT_BASH_STYLE>",
-    "<MULTI_LINE_COMMENT_C_STYLE>",
-    "<MULTI_LINE_COMMENT_HTML_STYLE>",
+    "<token of kind 6>",
+    "<token of kind 7>",
+    "\"/*\"",
+    "\"<!--\"",
+    "\"*/\"",
+    "\"-->\"",
+    "<token of kind 12>",
     "\"true\"",
     "\"false\"",
     "\"null\"",
@@ -152,9 +123,10 @@ public interface JSONParserConstants {
     "<FRACTIONAL_DIGITS>",
     "<EXPONENT>",
     "<DIGITS>",
-    "<SINGLE_QUOTED_STRING>",
     "<QUOTED_STRING>",
-    "<UNQUOTED_STRING>",
+    "<SINGLE_QUOTED_STRING>",
+    "<IDENTIFIER>",
+    "<LETTER>",
   };
 
 }
