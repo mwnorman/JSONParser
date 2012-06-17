@@ -18,36 +18,6 @@
  * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE
  * USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * string escape logic (BSD license):
- * Copyright 2003-2008 MicroNova (R)
- * All rights reserved.
- * Redistribution and use in source and binary forms, with or
- * without modification, are permitted provided that the following
- * conditions are met:
- *
- * Redistributions of source code must retain the above copyright
- * notice, this list of conditions and the following disclaimer.
- *
- * Redistributions in binary form must reproduce the above copyright
- * notice, this list of conditions and the following disclaimer in the
- * documentation and/or other materials provided with the distribution.
- *
- * Neither the name of MicroNova nor the names of its contributors
- * may be used to endorse or promote products derived from this
- * software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
  ******************************************************************************/
 options {
       STATIC = false;
@@ -80,36 +50,6 @@ PARSER_BEGIN(JSONParser)
  * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE
  * USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * string escape logic (BSD license):
- * Copyright 2003-2008 MicroNova (R)
- * All rights reserved.
- * Redistribution and use in source and binary forms, with or
- * without modification, are permitted provided that the following
- * conditions are met:
- *
- * Redistributions of source code must retain the above copyright
- * notice, this list of conditions and the following disclaimer.
- *
- * Redistributions in binary form must reproduce the above copyright
- * notice, this list of conditions and the following disclaimer in the
- * documentation and/or other materials provided with the distribution.
- *
- * Neither the name of MicroNova nor the names of its contributors
- * may be used to endorse or promote products derived from this
- * software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
  ******************************************************************************/
 package org.mwnorman.json;
 
@@ -138,11 +78,30 @@ SKIP: {
     |   "\n"
     |   "\r"
     |   "\f"
-    // comments: not really part of JSON spec, but parser shouldn't blow-up if present    
-    |   <SINGLE_LINE_COMMENT_C_STYLE: "//" (~["\n","\r"])* ("\n"|"\r"|"\r\n")>   
-    |   <SINGLE_LINE_COMMENT_BASH_STYLE: "#" (~["\n","\r"])* ("\n"|"\r"|"\r\n")>
-    |   <MULTI_LINE_COMMENT_C_STYLE: "/*" (~["*"])* "*" ("*" | (~["*","/"] (~["*"])* "*"))* "/">
-    |   <MULTI_LINE_COMMENT_HTML_STYLE: "<!--" (~["-"])* "-" ("-" | (~["-",">"] (~["-"])* "-"))* ">">
+}
+
+// comments: not really part of JSON spec, but parser shouldn't blow-up if present 
+SKIP: {
+        //single-line 'C'-style comments
+        < "//" (~["\n","\r"])* ("\n" | "\r" | "\r\n")>
+        //single-line Bash-style comments
+    |   < "#" (~["\n","\r"])* ("\n"|"\r"|"\r\n")>
+        //multi-line 'C'-style comments - NB. does not handle nested comments
+    |   "/*" : WithinMLC
+        //multi-line HTML comments
+    |   "<!--" : WithinMLH
+}
+<WithinMLC> SKIP :
+{
+        "*/" : DEFAULT
+}
+<WithinMLH> SKIP :
+{
+        "-->" : DEFAULT
+}
+<WithinMLC, WithinMLH> MORE :
+{
+        <~[]>
 }
 
 // JSON reserved keywords (prefix with K_ to avoid naming conflicts): only lower case allowed!
@@ -167,13 +126,22 @@ TOKEN: {
 
 // numeric literals
 TOKEN: {
-        <#DIGIT: ["0" - "9"] >
-    |   <#NONZERO_DIGIT: ["1" - "9"] >
+        <#DIGIT: [
+	        "\u0030"-"\u0039", "\u0660"-"\u0669", "\u06f0"-"\u06f9", "\u0966"-"\u096f",
+	        "\u09e6"-"\u09ef", "\u0a66"-"\u0a6f", "\u0ae6"-"\u0aef", "\u0b66"-"\u0b6f",
+            "\u0be7"-"\u0bef", "\u0c66"-"\u0c6f", "\u0ce6"-"\u0cef", "\u0d66"-"\u0d6f",
+            "\u0e50"-"\u0e59", "\u0ed0"-"\u0ed9", "\u1040"-"\u1049" //missing code group?
+		  ] >
+    |   <#NONZERO_DIGIT: [
+            "\u0031"-"\u0039", "\u0661"-"\u0669", "\u06f1"-"\u06f9", "\u0967"-"\u096f",
+            "\u09e7"-"\u09ef", "\u0a67"-"\u0a6f", "\u0ae7"-"\u0aef", "\u0b67"-"\u0b6f",
+            "\u0be8"-"\u0bef", "\u0c67"-"\u0c6f", "\u0ce7"-"\u0cef", "\u0d67"-"\u0d6f",
+            "\u0e51"-"\u0e59", "\u0ed1"-"\u0ed9", "\u1041"-"\u1049"
+          ] >
     |   <#EXP: ["e", "E"] ( <O_PLUS > | <O_MINUS > )? >
 }
 // JSON numbers do not support octal or hexadecimal formats
 TOKEN: {
-  
         <NUMBER:  <INTEGER> | <INTEGER> <FRACTIONAL_DIGITS> | <INTEGER> <EXPONENT> | <INTEGER> <FRACTIONAL_DIGITS> <EXPONENT> >
     |   <INTEGER: (<O_MINUS>)? ( <DIGIT> | <NONZERO_DIGIT> <DIGITS>) >
     |   <FRACTIONAL_DIGITS: <O_DOT> <DIGITS > >
@@ -183,9 +151,26 @@ TOKEN: {
 
 // string literals
 TOKEN: {
-        <SINGLE_QUOTED_STRING: ["'"](~["'"]|"\\'")*["'"]>
-    |   <QUOTED_STRING: ["\""](~["\""]|"\\\"")*["\""]>
-    |   <UNQUOTED_STRING: (~[" ","\r","\n","\t","{","}","[","]",",",":","\"","'"])+>
+        <QUOTED_STRING: "\"" ( (~["\"","\\"]) | ("\\" ( ["n","t","b","r","f","\\","\""] ) ) )* "\"">
+    |   <SINGLE_QUOTED_STRING: "\'" ( (~["\'","\\"]) | ("\\" ( ["n","t","b","r","f","\\","\'"] ) ) )* "\'">
+}
+TOKEN: {
+        <IDENTIFIER: <LETTER> (<LETTER> | <DIGIT> | "_")* >
+    |   <#LETTER: [
+	       "\u0024",
+	       "\u0041"-"\u005a",
+	       "\u005f",
+	       "\u0061"-"\u007a",
+	       "\u00c0"-"\u00d6",
+	       "\u00d8"-"\u00f6",
+	       "\u00f8"-"\u00ff",
+	       "\u0100"-"\u1fff",
+	       "\u3040"-"\u318f",
+	       "\u3300"-"\u337f",
+	       "\u3400"-"\u3d2d",
+	       "\u4e00"-"\u9fff",
+	       "\uf900"-"\ufaff"
+       ]>
 }
 
 Object parse():
@@ -238,17 +223,18 @@ String fieldName = null;
     (
       <SINGLE_QUOTED_STRING>
         {
-          fieldName = stripOffQuotes(decodeBackslash(token.image));
+          fieldName = stripOffQuotes(token.image);
         }
       |
       <QUOTED_STRING>
         {
-          fieldName = stripOffQuotes(decodeBackslash(token.image));
+          fieldName = stripOffQuotes(token.image);
         }
       |
-      <UNQUOTED_STRING>
+      //some JSON systems now accept 'naked' strings
+      <IDENTIFIER>
         {
-          fieldName = decodeBackslash(token.image);
+          fieldName = token.image;
         }
     )
     {
@@ -258,70 +244,7 @@ String fieldName = null;
 
 JAVACODE
 String stripOffQuotes(String quotedString) {
-    if (!(quotedString.startsWith("\"") || quotedString.startsWith("'"))) {
-        return quotedString;
-    }
     return quotedString.substring(1, quotedString.length() - 1);
-}
-
-JAVACODE
-String decodeBackslash(String s) {
-    StringBuilder sb = new StringBuilder();
-    int inputLength = s.length();
-    boolean isAfterSlash = false;
-    for (int i = 0; i < inputLength; i ++) {
-        char c = s.charAt(i);
-        if (c == '\\') {
-            if (!isAfterSlash) {
-                isAfterSlash = true;
-            }
-            else {
-                sb.append(c);
-                isAfterSlash = false;
-            }
-        }
-        else {
-            if (isAfterSlash) {
-                switch (c) {
-                    case 'n':
-                        sb.append('\n');
-                    break;
-                    case 'r':
-                        sb.append('\r');
-                    break;
-                    case 't':
-                        sb.append('\t');
-                    break;
-                    case 'b':
-                        sb.append('\b');
-                    break;
-                    case 'f':
-                        sb.append('\f');
-                    break;
-                    case '\'':
-                        sb.append('\'');
-                    break;
-                    case '/':
-                        sb.append('/');
-                    break;
-                    case '\"':
-                        sb.append('\"');
-                    break;
-                    //handle Unicode-escaping
-                    case 'u':
-                        int u = Integer.parseInt(s.substring(i + 1, i + 5), 16);
-                        sb.append((char)u);
-                        i += 4;
-                    break;
-                }
-                isAfterSlash = false;
-            }
-            else {
-                sb.append(c);
-            }                        
-        }
-    }
-    return sb.toString();
 }
 
 Object array():
@@ -355,8 +278,8 @@ Object o = null;
 {
     (   o=object()
     |   o=array()
-    |   t=<SINGLE_QUOTED_STRING> {o = stripOffQuotes(decodeBackslash(t.image));}
-    |   t=<QUOTED_STRING> {o = stripOffQuotes(decodeBackslash(t.image));}    
+    |   t=<SINGLE_QUOTED_STRING> {o = stripOffQuotes(t.image);}
+    |   t=<QUOTED_STRING> {o = stripOffQuotes(t.image);}
     |   t=<NUMBER>
         {
             try {
@@ -382,7 +305,7 @@ Object o = null;
             }
         }
     |   <K_TRUE> {o = Boolean.TRUE;}
-    |   <K_FALSE> {o = Boolean.TRUE;}
+    |   <K_FALSE> {o = Boolean.FALSE;}
     |   <K_NULL> )
     {
         return o;

@@ -19,36 +19,6 @@
  * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE
  * USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * string escape logic (BSD license):
- * Copyright 2003-2008 MicroNova (R)
- * All rights reserved.
- * Redistribution and use in source and binary forms, with or
- * without modification, are permitted provided that the following
- * conditions are met:
- *
- * Redistributions of source code must retain the above copyright
- * notice, this list of conditions and the following disclaimer.
- *
- * Redistributions in binary form must reproduce the above copyright
- * notice, this list of conditions and the following disclaimer in the
- * documentation and/or other materials provided with the distribution.
- *
- * Neither the name of MicroNova nor the names of its contributors
- * may be used to endorse or promote products derived from this
- * software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
  ******************************************************************************/
 package org.mwnorman.json;
 
@@ -116,9 +86,9 @@ jjtree.openNodeScope(jjtn000);Map<String, Object> m = new LinkedHashMap<String, 
     try {
       jj_consume_token(O_OPENBRACE);
       switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
-      case SINGLE_QUOTED_STRING:
       case QUOTED_STRING:
-      case UNQUOTED_STRING:
+      case SINGLE_QUOTED_STRING:
+      case IDENTIFIER:
         members(m);
         break;
       default:
@@ -230,15 +200,15 @@ jjtree.openNodeScope(jjtn000);String fieldName = null;
       switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
       case SINGLE_QUOTED_STRING:
         jj_consume_token(SINGLE_QUOTED_STRING);
-          fieldName = stripOffQuotes(decodeBackslash(token.image));
+          fieldName = stripOffQuotes(token.image);
         break;
       case QUOTED_STRING:
         jj_consume_token(QUOTED_STRING);
-          fieldName = stripOffQuotes(decodeBackslash(token.image));
+          fieldName = stripOffQuotes(token.image);
         break;
-      case UNQUOTED_STRING:
-        jj_consume_token(UNQUOTED_STRING);
-          fieldName = decodeBackslash(token.image);
+      case IDENTIFIER:
+        jj_consume_token(IDENTIFIER);
+          fieldName = token.image;
         break;
       default:
         jj_consume_token(-1);
@@ -260,78 +230,7 @@ jjtree.openNodeScope(jjtn000);String fieldName = null;
  SimpleNode jjtn000 = new SimpleNode(JJTSTRIPOFFQUOTES);
  boolean jjtc000 = true;
  jjtree.openNodeScope(jjtn000);
- try {if (!(quotedString.startsWith("\u005c"") || quotedString.startsWith("'"))) {
-        return quotedString;
-    }
-    return quotedString.substring(1, quotedString.length() - 1);/*@bgen(jjtree)*/
- } finally {
-   if (jjtc000) {
-     jjtree.closeNodeScope(jjtn000, true);
-   }
- }
-  }
-
-  String decodeBackslash(String s) throws ParseException {
-                                  /*@bgen(jjtree) decodeBackslash */
- SimpleNode jjtn000 = new SimpleNode(JJTDECODEBACKSLASH);
- boolean jjtc000 = true;
- jjtree.openNodeScope(jjtn000);
- try {StringBuilder sb = new StringBuilder();
-    int inputLength = s.length();
-    boolean isAfterSlash = false;
-    for (int i = 0; i < inputLength; i ++) {
-        char c = s.charAt(i);
-        if (c == '\u005c\u005c') {
-            if (!isAfterSlash) {
-                isAfterSlash = true;
-            }
-            else {
-                sb.append(c);
-                isAfterSlash = false;
-            }
-        }
-        else {
-            if (isAfterSlash) {
-                switch (c) {
-                    case 'n':
-                        sb.append('\u005cn');
-                    break;
-                    case 'r':
-                        sb.append('\u005cr');
-                    break;
-                    case 't':
-                        sb.append('\u005ct');
-                    break;
-                    case 'b':
-                        sb.append('\u005cb');
-                    break;
-                    case 'f':
-                        sb.append('\u005cf');
-                    break;
-                    case '\u005c'':
-                        sb.append('\u005c'');
-                    break;
-                    case '/':
-                        sb.append('/');
-                    break;
-                    case '\u005c"':
-                        sb.append('\u005c"');
-                    break;
-                    //handle Unicode-escaping
-                    case 'u':
-                        int u = Integer.parseInt(s.substring(i + 1, i + 5), 16);
-                        sb.append((char)u);
-                        i += 4;
-                    break;
-                }
-                isAfterSlash = false;
-            }
-            else {
-                sb.append(c);
-            }
-        }
-    }
-    return sb.toString();/*@bgen(jjtree)*/
+ try {return quotedString.substring(1, quotedString.length() - 1);/*@bgen(jjtree)*/
  } finally {
    if (jjtc000) {
      jjtree.closeNodeScope(jjtn000, true);
@@ -353,8 +252,8 @@ jjtree.openNodeScope(jjtn000);List<Object> a=new ArrayList<Object>();
       case O_OPENBRACE:
       case O_OPENBRACKET:
       case NUMBER:
-      case SINGLE_QUOTED_STRING:
       case QUOTED_STRING:
+      case SINGLE_QUOTED_STRING:
         elements(a);
         break;
       default:
@@ -442,11 +341,11 @@ Object o = null;
         break;
       case SINGLE_QUOTED_STRING:
         t = jj_consume_token(SINGLE_QUOTED_STRING);
-                                  o = stripOffQuotes(decodeBackslash(t.image));
+                                  o = stripOffQuotes(t.image);
         break;
       case QUOTED_STRING:
         t = jj_consume_token(QUOTED_STRING);
-                           o = stripOffQuotes(decodeBackslash(t.image));
+                           o = stripOffQuotes(t.image);
         break;
       case NUMBER:
         t = jj_consume_token(NUMBER);
@@ -480,7 +379,7 @@ Object o = null;
         break;
       case K_FALSE:
         jj_consume_token(K_FALSE);
-                   o = Boolean.TRUE;
+                   o = Boolean.FALSE;
         break;
       case K_NULL:
         jj_consume_token(K_NULL);
