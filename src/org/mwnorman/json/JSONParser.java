@@ -4,13 +4,13 @@
  * (ISCL http://www.opensource.org/licenses/isc-license.txt
  * It is functionally equivalent to the 2-clause BSD licence,
  * with language "made unnecessary by the Berne convention" removed).
- * 
+ *
  * Copyright (c) 2011, Mike Norman
- * 
+ *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
@@ -23,6 +23,8 @@
 package org.mwnorman.json;
 
 //javase imports
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -32,8 +34,22 @@ import java.util.Map;
 @SuppressWarnings("all")
 public class JSONParser/*@bgen(jjtree)*/implements JSONParserTreeConstants, JSONParserConstants {/*@bgen(jjtree)*/
   protected JJTJSONParserState jjtree = new JJTJSONParserState();
+    static protected String stripOffQuotes(String quotedString) {
+        return quotedString.substring(1, quotedString.length() - 1);
+    }
+    public static String TRUE_ATOM = stripOffQuotes(tokenImage[K_TRUE]);
+    public static String FALSE_ATOM = stripOffQuotes(tokenImage[K_FALSE]);
+
     public JSONParser() {
         super();
+    }
+
+    //cheat to sorta get generics on productions
+    public <A> List<A> array() throws ParseException {
+        return _array();
+    }
+    public <T> Map<String, T> object() throws ParseException {
+        return _object();
     }
 
   final public Object parse() throws ParseException {
@@ -44,10 +60,10 @@ jjtree.openNodeScope(jjtn000);Object o = null;
     try {
       switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
       case O_OPENBRACE:
-        o = object();
+        o = _object();
         break;
       case O_OPENBRACKET:
-        o = array();
+        o = _array();
         break;
       default:
         jj_consume_token(-1);
@@ -78,11 +94,11 @@ jjtree.openNodeScope(jjtn000);Object o = null;
     throw new Error("Missing return statement in function");
   }
 
-  final public Object object() throws ParseException {
- /*@bgen(jjtree) object */
-SimpleNode jjtn000 = new SimpleNode(JJTOBJECT);
+  final protected Map _object() throws ParseException {
+ /*@bgen(jjtree) _object */
+SimpleNode jjtn000 = new SimpleNode(JJT_OBJECT);
 boolean jjtc000 = true;
-jjtree.openNodeScope(jjtn000);Map<String, Object> m = new LinkedHashMap<String, Object>();
+jjtree.openNodeScope(jjtn000);Map m = new LinkedHashMap();
     try {
       jj_consume_token(O_OPENBRACE);
       switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
@@ -120,7 +136,7 @@ jjtree.openNodeScope(jjtn000);Map<String, Object> m = new LinkedHashMap<String, 
     throw new Error("Missing return statement in function");
   }
 
-  final public void members(Map<String, Object> m) throws ParseException {
+  final protected void members(Map m) throws ParseException {
  /*@bgen(jjtree) members */
   SimpleNode jjtn000 = new SimpleNode(JJTMEMBERS);
   boolean jjtc000 = true;
@@ -156,7 +172,7 @@ jjtree.openNodeScope(jjtn000);Map<String, Object> m = new LinkedHashMap<String, 
     }
   }
 
-  final public void pair(Map<String, Object> m) throws ParseException {
+  final protected void pair(Map m) throws ParseException {
  /*@bgen(jjtree) pair */
 SimpleNode jjtn000 = new SimpleNode(JJTPAIR);
 boolean jjtc000 = true;
@@ -191,7 +207,7 @@ String fieldName = null;
     }
   }
 
-  final public String fieldName() throws ParseException {
+  final protected String fieldName() throws ParseException {
  /*@bgen(jjtree) fieldName */
 SimpleNode jjtn000 = new SimpleNode(JJTFIELDNAME);
 boolean jjtc000 = true;
@@ -225,24 +241,11 @@ jjtree.openNodeScope(jjtn000);String fieldName = null;
     throw new Error("Missing return statement in function");
   }
 
-  String stripOffQuotes(String quotedString) throws ParseException {
-                                            /*@bgen(jjtree) stripOffQuotes */
- SimpleNode jjtn000 = new SimpleNode(JJTSTRIPOFFQUOTES);
- boolean jjtc000 = true;
- jjtree.openNodeScope(jjtn000);
- try {return quotedString.substring(1, quotedString.length() - 1);/*@bgen(jjtree)*/
- } finally {
-   if (jjtc000) {
-     jjtree.closeNodeScope(jjtn000, true);
-   }
- }
-  }
-
-  final public Object array() throws ParseException {
- /*@bgen(jjtree) array */
-SimpleNode jjtn000 = new SimpleNode(JJTARRAY);
+  final protected List _array() throws ParseException {
+ /*@bgen(jjtree) _array */
+SimpleNode jjtn000 = new SimpleNode(JJT_ARRAY);
 boolean jjtc000 = true;
-jjtree.openNodeScope(jjtn000);List<Object> a=new ArrayList<Object>();
+jjtree.openNodeScope(jjtn000);List a=new ArrayList();
     try {
       jj_consume_token(O_OPENBRACKET);
       switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
@@ -254,6 +257,7 @@ jjtree.openNodeScope(jjtn000);List<Object> a=new ArrayList<Object>();
       case NUMBER:
       case QUOTED_STRING:
       case SINGLE_QUOTED_STRING:
+      case IDENTIFIER:
         elements(a);
         break;
       default:
@@ -286,7 +290,7 @@ jjtree.openNodeScope(jjtn000);List<Object> a=new ArrayList<Object>();
     throw new Error("Missing return statement in function");
   }
 
-  final public void elements(List<Object> a) throws ParseException {
+  final protected void elements(List a) throws ParseException {
  /*@bgen(jjtree) elements */
 SimpleNode jjtn000 = new SimpleNode(JJTELEMENTS);
 boolean jjtc000 = true;
@@ -325,7 +329,7 @@ jjtree.openNodeScope(jjtn000);Object o = null;
     }
   }
 
-  final public Object value() throws ParseException {
+  final protected Object value() throws ParseException {
  /*@bgen(jjtree) value */
 SimpleNode jjtn000 = new SimpleNode(JJTVALUE);
 boolean jjtc000 = true;
@@ -334,10 +338,14 @@ Object o = null;
     try {
       switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
       case O_OPENBRACE:
-        o = object();
+        o = _object();
         break;
       case O_OPENBRACKET:
-        o = array();
+        o = _array();
+        break;
+      case IDENTIFIER:
+        t = jj_consume_token(IDENTIFIER);
+                        o = t.image;
         break;
       case SINGLE_QUOTED_STRING:
         t = jj_consume_token(SINGLE_QUOTED_STRING);
@@ -351,26 +359,19 @@ Object o = null;
         t = jj_consume_token(NUMBER);
             try {
               o = Integer.valueOf(t.image);
-
             }
             catch (NumberFormatException nfe1) {
                 try {
-                    o = Long.valueOf(t.image);
+                     o = new BigInteger(t.image);
                 }
-                catch (NumberFormatException nfe2) {
-                    try {
-                        o = Float.valueOf(t.image);
-                    }
-                    catch (NumberFormatException nfe3) {
+                catch  (NumberFormatException nfe2) {
                         try {
-                            o = Double.valueOf(t.image);
+                             o = new BigDecimal(t.image);
                         }
-                        catch  (NumberFormatException nfe4) {
-                            o = Double.NaN;
+                        catch  (NumberFormatException nfe3) {
+                             o = Double.NaN;
                         }
                     }
-                }
-
             }
         break;
       case K_TRUE:

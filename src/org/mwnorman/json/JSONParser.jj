@@ -4,13 +4,13 @@
  * (ISCL http://www.opensource.org/licenses/isc-license.txt
  * It is functionally equivalent to the 2-clause BSD licence,
  * with language "made unnecessary by the Berne convention" removed).
- * 
+ *
  * Copyright (c) 2011, Mike Norman
- * 
+ *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
@@ -36,13 +36,13 @@ PARSER_BEGIN(JSONParser)
  * (ISCL http://www.opensource.org/licenses/isc-license.txt
  * It is functionally equivalent to the 2-clause BSD licence,
  * with language "made unnecessary by the Berne convention" removed).
- * 
+ *
  * Copyright (c) 2011, Mike Norman
- * 
+ *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
@@ -55,6 +55,8 @@ PARSER_BEGIN(JSONParser)
 package org.mwnorman.json;
 
 //javase imports
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -66,16 +68,34 @@ public class JSONParser/*@bgen(jjtree)*/implements JSONParserTreeConstants/*@ege
 
 /*@egen*/
 
+    static protected String stripOffQuotes(String quotedString) {
+        return quotedString.substring(1, quotedString.length() - 1);
+    }
+    public static String TRUE_ATOM = stripOffQuotes(tokenImage[K_TRUE]);
+    public static String FALSE_ATOM = stripOffQuotes(tokenImage[K_FALSE]);
+
     public JSONParser() {
         super();
+    }
+
+    //cheat to sorta get generics on productions
+    public <A> List<A> array() throws ParseException {
+        return _array();    }
+    public <T> Map<String, T> object() throws ParseException {
+        return _object();
     }
 }
 
 PARSER_END(JSONParser)
 
+TOKEN_MGR_DECLS :
+{
+    static int commentNesting = 0;
+}
+
 // Pls see http://www.ietf.org/rfc/rfc4627.txt for JSON spec details
 
-// white space 
+// white space
 SKIP: {
         " "
     |   "\t"
@@ -84,20 +104,30 @@ SKIP: {
     |   "\f"
 }
 
-// comments: not really part of JSON spec, but parser shouldn't blow-up if present 
+// comments: not really part of JSON spec, but parser shouldn't blow-up if present
 SKIP: {
         //single-line 'C'-style comments
         < "//" (~["\n","\r"])* ("\n" | "\r" | "\r\n")>
         //single-line Bash-style comments
     |   < "#" (~["\n","\r"])* ("\n"|"\r"|"\r\n")>
-        //multi-line 'C'-style comments - NB. does not handle nested comments
-    |   "/*" : WithinMLC
-        //multi-line HTML comments
+        //multi-line 'C'-style comments with counter for nesting
+    |   "/*" { commentNesting++; } : WithinMLC
+        //multi-line HTML comments (no nesting)
     |   "<!--" : WithinMLH
 }
 <WithinMLC> SKIP :
 {
-        "*/" : DEFAULT
+      "/*"
+      { 
+        commentNesting++; 
+      }
+    | "*/"
+      {
+        commentNesting--;
+        if (commentNesting == 0) {
+            SwitchTo(DEFAULT);
+        }
+      }
 }
 <WithinMLH> SKIP :
 {
@@ -125,30 +155,58 @@ TOKEN: {
     |   <O_COLON: ":">
     |   <O_DOT: ".">
     |   <O_PLUS: "+">
-    |   <O_MINUS: "-">  
+    |   <O_MINUS: "-">
 }
 
 // numeric literals
 TOKEN: {
         <#DIGIT: [
-	        "0"-"9", "\u0660"-"\u0669", "\u06f0"-"\u06f9", "\u0966"-"\u096f",
-	        "\u09e6"-"\u09ef", "\u0a66"-"\u0a6f", "\u0ae6"-"\u0aef", "\u0b66"-"\u0b6f",
-            "\u0be7"-"\u0bef", "\u0c66"-"\u0c6f", "\u0ce6"-"\u0cef", "\u0d66"-"\u0d6f",
-            "\u0e50"-"\u0e59", "\u0ed0"-"\u0ed9", "\u1040"-"\u1049" //missing code group?
-		  ] >
-    |   <#NONZERO_DIGIT: [
-            "1"-"9", "\u0661"-"\u0669", "\u06f1"-"\u06f9", "\u0967"-"\u096f",
-            "\u09e7"-"\u09ef", "\u0a67"-"\u0a6f", "\u0ae7"-"\u0aef", "\u0b67"-"\u0b6f",
-            "\u0be8"-"\u0bef", "\u0c67"-"\u0c6f", "\u0ce7"-"\u0cef", "\u0d67"-"\u0d6f",
-            "\u0e51"-"\u0e59", "\u0ed1"-"\u0ed9", "\u1041"-"\u1049"
-          ] >
+		    //Unicode "DIGIT" characters - more inclusive than Character.isDigit
+		    "0"-"9", //DIGIT ZERO - DIGIT NINE
+		    "\u0660"-"\u0669", //ARABIC-INDIC DIGIT ZERO -ARABIC-INDIC DIGIT NINE
+		    "\u06f0"-"\u06f9", //EXTENDED ARABIC-INDIC DIGIT ZERO - EXTENDED ARABIC-INDIC DIGIT NINE
+		    "\u07c0"-"\u07c9", //NKO DIGIT ZERO - NKO DIGIT NINE
+		    "\u0966"-"\u096f", //DEVANAGARI DIGIT ZERO - DEVANAGARI DIGIT NINE
+		    "\u09e6"-"\u09ef", //BENGALI DIGIT ZERO - BENGALI DIGIT NINE
+		    "\u0a66"-"\u0a6f", //GURMUKHI DIGIT ZERO - GURMUKHI DIGIT NINE
+		    "\u0ae6"-"\u0aef", //GUJARATI DIGIT ZERO - GUJARATI DIGIT NINE
+		    "\u0b66"-"\u0b6f", //ORIYA DIGIT ZERO - ORIYA DIGIT NINE
+		    "\u0be6"-"\u0bef", //TAMIL DIGIT ZERO - TAMIL DIGIT NINE
+		    "\u0c66"-"\u0c6f", //TELUGU DIGIT ZERO - TELUGU DIGIT NINE
+		    "\u0ce6"-"\u0cef", //KANNADA DIGIT ZERO - KANNADA DIGIT NINE
+		    "\u0d66"-"\u0d6f", //MALAYALAM DIGIT ZERO - MALAYALAM DIGIT NINE
+		    "\u0e50"-"\u0e59", //THAI DIGIT ZERO - THAI DIGIT NINE
+		    "\u0ed0"-"\u0ed9", //LAO DIGIT ZERO - LAO DIGIT NINE
+		    "\u0f20"-"\u0f29", //TIBETAN DIGIT ZERO - TIBETAN DIGIT NINE
+		    "\u1040"-"\u1049", //MYANMAR DIGIT ZERO - MYANMAR DIGIT NINE
+		    "\u1090"-"\u1099", //MYANMAR SHAN DIGIT ZERO - MYANMAR SHAN DIGIT NINE
+		    "\u1369"-"\u1371", //ETHIOPIC DIGIT ZERO - ETHIOPIC DIGIT NINE  
+		    "\u17e0"-"\u17e9", //KHMER DIGIT ZERO - KHMER DIGIT NINE
+		    "\u1810"-"\u1819", //MONGOLIAN DIGIT ZERO - MONGOLIAN DIGIT NINE
+		    "\u1946"-"\u194f", //LIMBU DIGIT ZERO - LIMBU DIGIT NINE
+		    "\u19d0"-"\u19d9", //NEW TAI LUE DIGIT ZERO - NEW TAI LUE DIGIT NINE
+		    "\u1a80"-"\u1a89", //TAI THAM HORA DIGIT ZERO - TAI THAM HORA DIGIT NINE
+		    "\u1a90"-"\u1a99", //TAI THAM THAM DIGIT ZERO - TAI THAM THAM DIGIT NINE
+		    "\u1b50"-"\u1b59", //BALINESE DIGIT ZERO - BALINESE DIGIT NINE
+		    "\u1bb0"-"\u1bb9", //SUNDANESE DIGIT ZERO - SUNDANESE DIGIT NINE
+		    "\u1c40"-"\u1c49", //LEPCHA DIGIT ZERO - LEPCHA DIGIT NINE
+		    "\u1c50"-"\u1c59", //OL CHIKI DIGIT ZERO - OL CHIKI DIGIT NINE
+		    "\ua620"-"\ua629", //VAI DIGIT ZERO - VAI DIGIT NINE
+		    "\ua8d0"-"\ua8d9", //SAURASHTRA DIGIT ZERO - SAURASHTRA DIGIT NINE
+		    "\ua8e0"-"\ua8e9", //COMBINING DEVANAGARI DIGIT ZERO - COMBINING DEVANAGARI DIGIT NINE
+		    "\ua900"-"\ua909", //KAYAH LI DIGIT ZERO - KAYAH LI DIGIT NINE
+		    "\ua9d0"-"\ua9d9", //JAVANESE DIGIT ZERO - JAVANESE DIGIT NINE
+		    "\uaa50"-"\uaa59", //CHAM DIGIT ZERO - CHAM DIGIT NINE
+		    "\uabf0"-"\uabf9", //MEETEI MAYEK DIGIT ZERO - MEETEI MAYEK DIGIT NINE
+		    "\uff10"-"\uff19"  //FULLWIDTH DIGIT ZERO -FULLWIDTH DIGIT NINE
+        ] >
     |   <#EXP: ["e", "E"] ( <O_PLUS > | <O_MINUS > )? >
 }
 // JSON numbers do not support octal or hexadecimal formats
 TOKEN: {
         <NUMBER:  <INTEGER> | <INTEGER> <FRACTIONAL_DIGITS> | <INTEGER> <EXPONENT> | <INTEGER> <FRACTIONAL_DIGITS> <EXPONENT> >
-    |   <INTEGER: (<O_MINUS>)? ( <DIGIT> | <NONZERO_DIGIT> <DIGITS>) >
-    |   <FRACTIONAL_DIGITS: <O_DOT> <DIGITS > >
+    |   <INTEGER: (<O_MINUS>)? ( <DIGITS> ) > //support leading zeros
+    |   <FRACTIONAL_DIGITS: <O_DOT> <DIGITS> >
     |   <EXPONENT: <EXP> <DIGITS> >
     |   <DIGITS: ( <DIGIT> )+ >
 }
@@ -161,20 +219,50 @@ TOKEN: {
 TOKEN: {
         <IDENTIFIER: <LETTER> (<LETTER> | <DIGIT> | "_")* >
     |   <#LETTER: [
-	       "$",
-	       "A"-"Z",
-	       "_",
-	       "a"-"z",
-	       "\u00c0"-"\u00d6",
-	       "\u00d8"-"\u00f6",
-	       "\u00f8"-"\u00ff",
-	       "\u0100"-"\u1fff",
-	       "\u3040"-"\u318f",
-	       "\u3300"-"\u337f",
-	       "\u3400"-"\u3d2d",
-	       "\u4e00"-"\u9fff",
-	       "\uf900"-"\ufaff"
-       ]>
+		    //Unicode "LETTER" characters - as of Javase 6, Unicode 4 is supported
+		    //http://www.unicode.org/Public/4.1.0/ucd/NamesList.txt
+		    //more inclusive than Character.isLetter
+	       "$",          //DOLLAR SIGN: milreis, escudo
+	       "A"-"Z", //LATIN CAPITAL LETTER A - LATIN CAPITAL LETTER Z
+	       "_",          //LOW LINE: spacing underscore
+	       "a"-"z", //LATIN SMALL LETTER A - LATIN SMALL LETTER Z
+	       "\u00aa"-"\u00ad", //  00AA FEMININE ORDINAL INDICATOR: spanish
+	                          //  00AB LEFT-POINTING DOUBLE ANGLE QUOTATION MARK: left guillemet
+	                          //  00AC NOT SIGN: angled dash
+	                          //  00AD SOFT HYPHEN: discretionary hyphen
+	       "\u00b5"-"\u00b6", //  00B5 MICRO SIGN: greek small letter mu
+	                          //  00B6 PILCROW SIGN: paragraph sign
+	       "\u00ba"-"\u00bb", //  00BA MASCULINE ORDINAL INDICATOR: spanish
+	                          //  00BB RIGHT-POINTING DOUBLE ANGLE QUOTATION MARK : right guillemet        
+	       "\u00c0"-"\u00d6", //LATIN CAPITAL LETTER A WITH GRAVE - LATIN CAPITAL LETTER O WITH DIAERESIS
+	       "\u00d8"-"\u00f6", //LATIN CAPITAL LETTER O WITH STROKE - LATIN SMALL LETTER O WITH DIAERESIS
+	       "\u00f8"-"\u00ff", //LATIN SMALL LETTER O WITH STROKE - LATIN SMALL LETTER Y WITH DIAERESIS
+	       "\u0100"-"\u1fff", //LATIN CAPITAL LETTER A WITH MACRON - GREEK DASIA:reversed comma
+	       "\u3040"-"\u318f", //Hiragana - Hangul
+	       "\u3300"-"\u337f", //Squared Katakana
+	       "\u3400"-"\u3d2d", //CJK Unified Ideographs Extension A
+	       "\u4e00"-"\u9fff", //CJK Unified Ideographs
+	       "\uf900"-"\ufaff", //CJK Compatibility Ideographs
+	       "\ufb00"-"\ufb06", //LATIN SMALL LIGATURE FF -LATIN SMALL LIGATURE ST
+	       "\ufb13"-"\ufb17", //ARMENIAN SMALL LIGATURE MEN NOW - ARMENIAN SMALL LIGATURE MEN XEH
+	       "\ufb1f"-"\ufb28", //HEBREW LIGATURE YIDDISH YOD YOD PATAH -HEBREW LETTER WIDE TAV
+	       "\ufb2a"-"\ufb36", //HEBREW LETTER SHIN WITH SHIN DOT - HEBREW LETTER ZAYIN WITH DAGESH
+	       "\ufb38"-"\ufb3e", //HEBREW LETTER TET WITH DAGESH - HEBREW LETTER MEM WITH DAGESH
+	       "\ufb40"-"\ufb41", //HEBREW LETTER NUN WITH DAGESH - HEBREW LETTER SAMEKH WITH DAGESH
+	       "\ufb43"-"\ufb44", //HEBREW LETTER FINAL PE WITH DAGESH - HEBREW LETTER PE WITH DAGESH
+	       "\ufb46"-"\ufb4f", //HEBREW LETTER TSADI WITH DAGESH - HEBREW LIGATURE ALEF LAMED
+	       "\ufb50"-"\ufdd7", //Arabic Presentation Forms(A) - ARABIC LIGATURE BISMILLAH AR-RAHMAN AR-RAHEEM
+	       "\ufdf0"-"\ufdfd", //ARABIC LIGATURE SALLA USED AS KORANIC STOP SIGN ISOLATED FORM -ARABIC LIGATURE BISMILLAH AR-RAHMAN AR-RAHEEM
+	       "\ufe70"-"\ufefc", //Arabic Presentation Forms(B) - ARABIC LIGATURE LAM WITH ALEF FINAL FORM
+	       "\uff1f"-"\uff3a", //FULLWIDTH QUESTION MARK - FULLWIDTH LATIN CAPITAL LETTER Z
+	       "\uff3f"-"\uff5e", //FULLWIDTH LOW LINE - FULLWIDTH TILDE
+	       "\uff61"-"\uffbe", //Halfwidth CJK punctuation:HALFWIDTH IDEOGRAPHIC FULL STOP - HALFWIDTH HANGUL LETTER HIEUH
+	       "\uffc2"-"\uffc7", //HALFWIDTH HANGUL LETTER A - HALFWIDTH HANGUL LETTER E
+	       "\uffca"-"\uffcf", //HALFWIDTH HANGUL LETTER YEO - HALFWIDTH HANGUL LETTER OE
+	       "\uffd2"-"\uffd7", //HALFWIDTH HANGUL LETTER YO - HALFWIDTH HANGUL LETTER YU
+	       "\uffda"-"\uffdc"  //HALFWIDTH HANGUL LETTER EU - HALFWIDTH HANGUL LETTER I
+      ]
+  >
 }
 
 Object parse():
@@ -188,7 +276,7 @@ Object o = null;
 {/*@bgen(jjtree) parse */
     try {
 /*@egen*/
-    ( o=object() | o=array() )/*@bgen(jjtree)*/
+    ( o=_object() | o=_array() )/*@bgen(jjtree)*/
     {
       jjtree.closeNodeScope(jjtn000, true);
       jjtc000 = false;
@@ -196,7 +284,7 @@ Object o = null;
 /*@egen*/
     {
         return o;
-    }/*@bgen(jjtree)*/
+    }/*@bgen(jjtree)*/
     } catch (Throwable jjte000) {
       if (jjtc000) {
         jjtree.clearNodeScope(jjtn000);
@@ -219,15 +307,15 @@ Object o = null;
 /*@egen*/
 }
 
-Object object():
-{/*@bgen(jjtree) object */
-SimpleNode jjtn000 = new SimpleNode(JJTOBJECT);
+protected Map _object():
+{/*@bgen(jjtree) _object */
+SimpleNode jjtn000 = new SimpleNode(JJT_OBJECT);
 boolean jjtc000 = true;
 jjtree.openNodeScope(jjtn000);
 /*@egen*/
-Map<String, Object> m = new LinkedHashMap<String, Object>();
+Map m = new LinkedHashMap();
 }
-{/*@bgen(jjtree) object */
+{/*@bgen(jjtree) _object */
     try {
 /*@egen*/
     <O_OPENBRACE> ( members(m) )? <O_CLOSEBRACE>/*@bgen(jjtree)*/
@@ -261,7 +349,7 @@ Map<String, Object> m = new LinkedHashMap<String, Object>();
 /*@egen*/
 }
 
-void members(Map<String, Object> m):
+protected void members(Map m):
 {/*@bgen(jjtree) members */
   SimpleNode jjtn000 = new SimpleNode(JJTMEMBERS);
   boolean jjtc000 = true;
@@ -294,7 +382,7 @@ void members(Map<String, Object> m):
 /*@egen*/
 }
 
-void pair(Map<String, Object> m):
+protected void pair(Map m):
 {/*@bgen(jjtree) pair */
 SimpleNode jjtn000 = new SimpleNode(JJTPAIR);
 boolean jjtc000 = true;
@@ -338,7 +426,7 @@ String fieldName = null;
 /*@egen*/
 }
 
-String fieldName():
+protected String fieldName():
 {/*@bgen(jjtree) fieldName */
 SimpleNode jjtn000 = new SimpleNode(JJTFIELDNAME);
 boolean jjtc000 = true;
@@ -360,7 +448,7 @@ String fieldName = null;
           fieldName = stripOffQuotes(token.image);
         }
       |
-      //some JSON systems now accept 'naked' strings
+      //some JSON systems now accept 'naked' JSON Objects
       <IDENTIFIER>
         {
           fieldName = token.image;
@@ -382,31 +470,15 @@ String fieldName = null;
 /*@egen*/
 }
 
-JAVACODE
-String stripOffQuotes(String quotedString) {/*@bgen(jjtree) stripOffQuotes */
- SimpleNode jjtn000 = new SimpleNode(JJTSTRIPOFFQUOTES);
- boolean jjtc000 = true;
- jjtree.openNodeScope(jjtn000);
- try {
-/*@egen*/
-    return quotedString.substring(1, quotedString.length() - 1);/*@bgen(jjtree)*/
- } finally {
-   if (jjtc000) {
-     jjtree.closeNodeScope(jjtn000, true);
-   }
- }
-/*@egen*/
-}
-
-Object array():
-{/*@bgen(jjtree) array */
-SimpleNode jjtn000 = new SimpleNode(JJTARRAY);
+protected List _array():
+{/*@bgen(jjtree) _array */
+SimpleNode jjtn000 = new SimpleNode(JJT_ARRAY);
 boolean jjtc000 = true;
 jjtree.openNodeScope(jjtn000);
 /*@egen*/
-List<Object> a=new ArrayList<Object>();
+List a=new ArrayList();
 }
-{/*@bgen(jjtree) array */
+{/*@bgen(jjtree) _array */
     try {
 /*@egen*/
     <O_OPENBRACKET> ( elements(a) )? <O_CLOSEBRACKET>/*@bgen(jjtree)*/
@@ -441,7 +513,7 @@ List<Object> a=new ArrayList<Object>();
 /*@egen*/
 }
 
-void elements(List<Object> a):
+protected void elements(List a):
 {/*@bgen(jjtree) elements */
 SimpleNode jjtn000 = new SimpleNode(JJTELEMENTS);
 boolean jjtc000 = true;
@@ -483,7 +555,7 @@ Object o = null;
 /*@egen*/
 }
 
-Object value():
+protected Object value():
 {/*@bgen(jjtree) value */
 SimpleNode jjtn000 = new SimpleNode(JJTVALUE);
 boolean jjtc000 = true;
@@ -495,33 +567,29 @@ Object o = null;
 {/*@bgen(jjtree) value */
     try {
 /*@egen*/
-    (   o=object()
-    |   o=array()
+    (   o=_object()
+    |   o=_array()
+    |   t=<IDENTIFIER> {o = t.image;} //'naked' values, too
     |   t=<SINGLE_QUOTED_STRING> {o = stripOffQuotes(t.image);}
     |   t=<QUOTED_STRING> {o = stripOffQuotes(t.image);}
     |   t=<NUMBER>
         {
             try {
               o = Integer.valueOf(t.image);
-            }
+            }
             catch (NumberFormatException nfe1) {
                 try {
-                    o = Long.valueOf(t.image);
+                     o = new BigInteger(t.image);
                 }
-                catch (NumberFormatException nfe2) {
-                    try {
-                        o = Float.valueOf(t.image);
-                    }
-                    catch (NumberFormatException nfe3) {
-                        try {
-                            o = Double.valueOf(t.image);
-                        }
-                        catch  (NumberFormatException nfe4) {
-                            o = Double.NaN;
-                        }
-                    }
-                }
-            }
+                catch  (NumberFormatException nfe2) {
+	                try {
+	                     o = new BigDecimal(t.image);
+	                }
+	                catch  (NumberFormatException nfe3) {
+	                     o = Double.NaN;
+	                }
+	            }
+            }
         }
     |   <K_TRUE> {o = Boolean.TRUE;}
     |   <K_FALSE> {o = Boolean.FALSE;}
@@ -533,7 +601,7 @@ Object o = null;
 /*@egen*/
     {
         return o;
-    }/*@bgen(jjtree)*/
+    }/*@bgen(jjtree)*/
     } catch (Throwable jjte000) {
       if (jjtc000) {
         jjtree.clearNodeScope(jjtn000);
