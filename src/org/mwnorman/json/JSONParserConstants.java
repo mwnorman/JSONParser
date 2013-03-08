@@ -4,13 +4,13 @@
  * (ISCL http://www.opensource.org/licenses/isc-license.txt
  * It is functionally equivalent to the 2-clause BSD licence,
  * with language "made unnecessary by the Berne convention" removed).
- * 
- * Copyright (c) 2011, Mike Norman
- * 
+ *
+ * Copyright (c) 2011-2013 Mike Norman
+ *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
@@ -33,33 +33,31 @@ public interface JSONParserConstants {
   /** End of File. */
   int EOF = 0;
   /** RegularExpression Id. */
-  int K_TRUE = 13;
+  int K_TRUE = 14;
   /** RegularExpression Id. */
-  int K_FALSE = 14;
+  int K_FALSE = 15;
   /** RegularExpression Id. */
-  int K_NULL = 15;
+  int K_NULL = 16;
   /** RegularExpression Id. */
-  int O_OPENBRACE = 16;
+  int O_OPENBRACE = 17;
   /** RegularExpression Id. */
-  int O_CLOSEBRACE = 17;
+  int O_CLOSEBRACE = 18;
   /** RegularExpression Id. */
-  int O_OPENBRACKET = 18;
+  int O_OPENBRACKET = 19;
   /** RegularExpression Id. */
-  int O_CLOSEBRACKET = 19;
+  int O_CLOSEBRACKET = 20;
   /** RegularExpression Id. */
-  int O_COMMA = 20;
+  int O_COMMA = 21;
   /** RegularExpression Id. */
-  int O_COLON = 21;
+  int O_COLON = 22;
   /** RegularExpression Id. */
-  int O_DOT = 22;
+  int O_DOT = 23;
   /** RegularExpression Id. */
-  int O_PLUS = 23;
+  int O_PLUS = 24;
   /** RegularExpression Id. */
-  int O_MINUS = 24;
+  int O_MINUS = 25;
   /** RegularExpression Id. */
-  int DIGIT = 25;
-  /** RegularExpression Id. */
-  int NONZERO_DIGIT = 26;
+  int DIGIT = 26;
   /** RegularExpression Id. */
   int EXP = 27;
   /** RegularExpression Id. */
@@ -100,9 +98,10 @@ public interface JSONParserConstants {
     "<token of kind 7>",
     "\"/*\"",
     "\"<!--\"",
+    "\"/*\"",
     "\"*/\"",
     "\"-->\"",
-    "<token of kind 12>",
+    "<token of kind 13>",
     "\"true\"",
     "\"false\"",
     "\"null\"",
@@ -116,7 +115,6 @@ public interface JSONParserConstants {
     "\"+\"",
     "\"-\"",
     "<DIGIT>",
-    "<NONZERO_DIGIT>",
     "<EXP>",
     "<NUMBER>",
     "<INTEGER>",

@@ -5,26 +5,24 @@ package org.mwnorman.json;
 public interface JSONParserTreeConstants
 {
   public int JJTPARSE = 0;
-  public int JJTOBJECT = 1;
+  public int JJT_OBJECT = 1;
   public int JJTMEMBERS = 2;
   public int JJTPAIR = 3;
   public int JJTFIELDNAME = 4;
-  public int JJTSTRIPOFFQUOTES = 5;
-  public int JJTARRAY = 6;
-  public int JJTELEMENTS = 7;
-  public int JJTVALUE = 8;
+  public int JJT_ARRAY = 5;
+  public int JJTELEMENTS = 6;
+  public int JJTVALUE = 7;
 
 
   public String[] jjtNodeName = {
     "parse",
-    "object",
+    "_object",
     "members",
     "pair",
     "fieldName",
-    "stripOffQuotes",
-    "array",
+    "_array",
     "elements",
     "value",
   };
 }
-/* JavaCC - OriginalChecksum=cbb0825fc94ab7ee1bade61e77c65d57 (do not edit this line) */
+/* JavaCC - OriginalChecksum=7e8f96d85c6a2ff404d43c5d73bf900f (do not edit this line) */
