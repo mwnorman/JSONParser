@@ -5,13 +5,13 @@
  * (ISCL http://www.opensource.org/licenses/isc-license.txt
  * It is functionally equivalent to the 2-clause BSD licence,
  * with language "made unnecessary by the Berne convention" removed).
- * 
- * Copyright (c) 2011, Mike Norman
- * 
+ *
+ * Copyright (c) 2011-2013 Mike Norman
+ *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
@@ -150,4 +150,4 @@ public class Token implements java.io.Serializable {
   }
 
 }
-/* JavaCC - OriginalChecksum=796e17a3605d90d82ccbc1b862895c23 (do not edit this line) */
+/* JavaCC - OriginalChecksum=5e62918244cf9ac035bc37ebc643280c (do not edit this line) */

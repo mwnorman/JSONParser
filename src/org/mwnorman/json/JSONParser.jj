@@ -23,11 +23,12 @@
 options {
       STATIC = false;
       SUPPORT_CLASS_VISIBILITY_PUBLIC = true;
-      ERROR_REPORTING = false;
+      ERROR_REPORTING = true;
       JAVA_UNICODE_ESCAPE = true;
       UNICODE_INPUT = true;
                                
                       
+      KEEP_LINE_COLUMN = true;
 }
 
 PARSER_BEGIN(JSONParser)
@@ -58,43 +59,153 @@ package org.mwnorman.json;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.NoSuchElementException;
 
-public class JSONParser/*@bgen(jjtree)*/implements JSONParserTreeConstants/*@egen*/ {/*@bgen(jjtree)*/
+//JSR-353 imports
+import javax.json.stream.JsonLocation;
+import javax.json.stream.JsonParser;
+
+public class JSONParser implements/*@bgen(jjtree)*/ JSONParserTreeConstants, /*@egen*/ JsonParser {/*@bgen(jjtree)*/
   protected JJTJSONParserState jjtree = new JJTJSONParserState();
 
 /*@egen*/
 
-    static protected String stripOffQuotes(String quotedString) {
+    //static helpers
+    static final BigInteger bigMaxInt =  BigInteger.valueOf(Integer.MAX_VALUE);
+    static final BigInteger bigMinInt =  BigInteger.valueOf(Integer.MIN_VALUE);
+    static final BigInteger bigMaxLong =  BigInteger.valueOf(Long.MAX_VALUE);
+    static final BigInteger bigMinLong =  BigInteger.valueOf(Long.MIN_VALUE);
+	
+    static String stripOffQuotes(String quotedString) {
         return quotedString.substring(1, quotedString.length() - 1);
     }
-    public static String TRUE_ATOM = stripOffQuotes(tokenImage[K_TRUE]);
-    public static String FALSE_ATOM = stripOffQuotes(tokenImage[K_FALSE]);
+    
+    public static class JsonLocationImpl implements JsonLocation {
+        int line;
+        int column;
+        public JsonLocationImpl(int line, int column) {
+            this.line = line;
+            this.column = column;
+        }
+        public JsonLocationImpl(Token t) {
+            this(t.beginLine, t.beginColumn);
+        }
+        public int getLineNumber() {
+            return line;
+        }
+        public int getColumnNumber() {
+            return column;
+        }
+        public int getStreamOffset() {
+            return -1;
+        }
+    }
+    public static final JsonLocation NULL_LOCATION = new JsonLocationImpl(-1,-1);
+    
+    static class EventWrapper {
+        enum NumType {TYPE_NONE, TYPE_INT, TYPE_LONG, TYPE_BIGDECIMAL}
+        Event event = null;
+        JsonLocation location = NULL_LOCATION;
+        String s = null;
+        boolean isIntegralNumber = false;
+        EventWrapper.NumType type = EventWrapper.NumType.TYPE_NONE;
+        int i;
+        long l;
+        BigDecimal bd = null;
+        EventWrapper(Event event) {
+            this.event = event;
+        }
+        public String toString() {            return event.toString();        }
+    }
 
+    List<EventWrapper> stack = new ArrayList<EventWrapper>();
+    EventWrapper currentEvent = null;
+    int currIdx = 0;
+    boolean strict = false;
+    
     public JSONParser() {
         super();
     }
 
-    //cheat to sorta get generics on productions
-    public <A> List<A> array() throws ParseException {
-        return _array();
+    //non-standard APIs
+    List<EventWrapper> getStack() {
+        return stack;    }
+
+    public Event peek() {
+        return stack.get(currIdx).event;
     }
-    public <T> Map<String, T> object() throws ParseException {
-        return _object();
+
+    public void setStrict() {
+        strict = true;    }
+
+    //JSR-353 standard APIs
+    
+    public boolean hasNext() {
+        if (stack.isEmpty() || currIdx == stack.size()) {
+            return false;
+        }
+        return true;
     }
+
+    public Event next() {
+        currentEvent = stack.get(currIdx++);
+        return currentEvent.event;
+    }
+
+    public String getString() {
+        if (currentEvent == null) {
+            return null;
+        }
+        return currentEvent.s;
+    }
+
+    public boolean isIntegralNumber() {
+        if (currentEvent == null) {
+            return false;
+        }
+        return currentEvent.isIntegralNumber;
+    }
+
+    public int getInt() {
+        if (currentEvent == null) {
+            return 0;
+        }
+        return currentEvent.i;
+    }
+
+    public long getLong() {
+        if (currentEvent == null) {
+            return 0l;
+        }
+        return currentEvent.l;
+    }
+
+    public BigDecimal getBigDecimal() {
+        if (currentEvent == null) {
+            return null;
+        }
+        return currentEvent.bd;
+    }
+
+    public JsonLocation getLocation() {
+        if (currentEvent == null) {
+            return NULL_LOCATION;
+        }
+        return currentEvent.location;
+    }
+
+	public void close() {
+	    stack.clear();
+	    currentEvent = null;
+	}
 }
 
 PARSER_END(JSONParser)
 
-TOKEN_MGR_DECLS :
-{
+TOKEN_MGR_DECLS : {
     static int commentNesting = 0;
 }
-
-// Pls see http://www.ietf.org/rfc/rfc4627.txt for JSON spec details
 
 // white space
 SKIP: {
@@ -116,8 +227,7 @@ SKIP: {
         //multi-line HTML comments (no nesting)
     |   "<!--" : WithinMLH
 }
-<WithinMLC> SKIP :
-{
+<WithinMLC> SKIP : {
       "/*"
       { 
         commentNesting++; 
@@ -130,17 +240,16 @@ SKIP: {
         }
       }
 }
-<WithinMLH> SKIP :
-{
+<WithinMLH> SKIP : {
         "-->" : DEFAULT
 }
-<WithinMLC, WithinMLH> MORE :
-{
+<WithinMLC, WithinMLH> MORE : {
         <~[]>
 }
 
-// JSON reserved keywords (prefix with K_ to avoid naming conflicts): only lower case allowed!
-TOKEN: {
+// JSON reserved keywords (prefix with K_ to avoid naming conflicts): JSON spec specifies
+// lowercase only, but parser shouldn't blow-up if present
+TOKEN [IGNORE_CASE] : {
         <K_TRUE: "true">
     |   <K_FALSE: "false">
     |   <K_NULL: "null">
@@ -265,27 +374,55 @@ TOKEN: {
       ]
   >
 }
-
-Object parse():
-{/*@bgen(jjtree) parse */
-SimpleNode jjtn000 = new SimpleNode(JJTPARSE);
-boolean jjtc000 = true;
-jjtree.openNodeScope(jjtn000);
-/*@egen*/
-Object o = null;
+/*
+Grammar without all the interspersed impl. code: pls see http://www.ietf.org/rfc/rfc4627.txt for JSON spec
+void parse():{}
+{
+    (_object() | _array()) //a JSON doc 
 }
+void _object():{}
+{
+    <O_OPENBRACE> (members())? <O_CLOSEBRACE>
+}
+void members():{}
+{
+    pair() [<O_COMMA> members()]
+}
+void pair():{}
+{
+    fieldName() <O_COLON> value()
+}
+void fieldName():{}
+{
+    (<SINGLE_QUOTED_STRING> | <QUOTED_STRING> | <IDENTIFIER>)
+                                               //some JSON systems now accept 'naked' JSON Objects
+}
+void _array():{}
+{
+    <O_OPENBRACKET> (elements())? <O_CLOSEBRACKET>
+}
+void elements():{}
+{
+    value() [<O_COMMA> elements()]
+}
+void value():{}
+{
+    (_object() | _array() | <IDENTIFIER> | <SINGLE_QUOTED_STRING> | <QUOTED_STRING> | <NUMBER> | <K_TRUE> | <K_FALSE> | <K_NULL>)
+                          //'naked' values, too
+}
+*/
+void parse():{/*@bgen(jjtree) parse */
+  SimpleNode jjtn000 = new SimpleNode(JJTPARSE);
+  boolean jjtc000 = true;
+  jjtree.openNodeScope(jjtn000);
+/*@egen*/}
 {/*@bgen(jjtree) parse */
     try {
 /*@egen*/
-    ( o=_object() | o=_array() )/*@bgen(jjtree)*/
-    {
-      jjtree.closeNodeScope(jjtn000, true);
-      jjtc000 = false;
-    }
-/*@egen*/
-    {
-        return o;
-    }/*@bgen(jjtree)*/
+    (
+        {stack.add(new EventWrapper(Event.START_OBJECT));} _object()
+      | {stack.add(new EventWrapper(Event.START_ARRAY));} _array()
+    )/*@bgen(jjtree)*/
     } catch (Throwable jjte000) {
       if (jjtc000) {
         jjtree.clearNodeScope(jjtn000);
@@ -308,26 +445,28 @@ Object o = null;
 /*@egen*/
 }
 
-protected Map _object():
-{/*@bgen(jjtree) _object */
-SimpleNode jjtn000 = new SimpleNode(JJT_OBJECT);
-boolean jjtc000 = true;
-jjtree.openNodeScope(jjtn000);
-/*@egen*/
-Map m = new LinkedHashMap();
-}
+void _object():{/*@bgen(jjtree) _object */
+                SimpleNode jjtn000 = new SimpleNode(JJT_OBJECT);
+                boolean jjtc000 = true;
+                jjtree.openNodeScope(jjtn000);
+/*@egen*/Token t = null;}
 {/*@bgen(jjtree) _object */
     try {
 /*@egen*/
-    <O_OPENBRACE> ( members(m) )? <O_CLOSEBRACE>/*@bgen(jjtree)*/
-    {
-      jjtree.closeNodeScope(jjtn000, true);
-      jjtc000 = false;
-    }
+    t=<O_OPENBRACE>      {
+        EventWrapper currentew = stack.get(stack.size() - 1);
+        currentew.location = new JsonLocationImpl(t);      }
+       (members())? t=<O_CLOSEBRACE>/*@bgen(jjtree)*/
+         {
+           jjtree.closeNodeScope(jjtn000, true);
+           jjtc000 = false;
+         }
 /*@egen*/
-    {
-        return m;
-    }/*@bgen(jjtree)*/
+         {
+           EventWrapper ew = new EventWrapper(Event.END_OBJECT);
+           ew.location = new JsonLocationImpl(t);
+           stack.add(ew);
+         }/*@bgen(jjtree)*/
     } catch (Throwable jjte000) {
       if (jjtc000) {
         jjtree.clearNodeScope(jjtn000);
@@ -350,17 +489,15 @@ Map m = new LinkedHashMap();
 /*@egen*/
 }
 
-protected void members(Map m):
-{/*@bgen(jjtree) members */
+void members():{/*@bgen(jjtree) members */
   SimpleNode jjtn000 = new SimpleNode(JJTMEMBERS);
   boolean jjtc000 = true;
   jjtree.openNodeScope(jjtn000);
-/*@egen*/
-}
+/*@egen*/}
 {/*@bgen(jjtree) members */
     try {
 /*@egen*/
-    pair(m) [ <O_COMMA> members(m) ]/*@bgen(jjtree)*/
+    pair() [ <O_COMMA> members() ]/*@bgen(jjtree)*/
     } catch (Throwable jjte000) {
       if (jjtc000) {
         jjtree.clearNodeScope(jjtn000);
@@ -383,28 +520,22 @@ protected void members(Map m):
 /*@egen*/
 }
 
-protected void pair(Map m):
-{/*@bgen(jjtree) pair */
-SimpleNode jjtn000 = new SimpleNode(JJTPAIR);
-boolean jjtc000 = true;
-jjtree.openNodeScope(jjtn000);
-/*@egen*/
-Token t = null;
-Object o;
-String fieldName = null;
-}
+void pair():{/*@bgen(jjtree) pair */
+             SimpleNode jjtn000 = new SimpleNode(JJTPAIR);
+             boolean jjtc000 = true;
+             jjtree.openNodeScope(jjtn000);
+/*@egen*/String fieldName = null;}
 {/*@bgen(jjtree) pair */
     try {
 /*@egen*/
-    fieldName=fieldName() <O_COLON> o=value()/*@bgen(jjtree)*/
     {
-      jjtree.closeNodeScope(jjtn000, true);
-      jjtc000 = false;
-    }
-/*@egen*/
-    {
-        m.put(fieldName, o);
-    }/*@bgen(jjtree)*/
+      EventWrapper ew = new EventWrapper(Event.KEY_NAME);
+      stack.add(ew);    }
+    fieldName=fieldName()
+      {
+        ew.s = fieldName;
+      }
+        <O_COLON> value()/*@bgen(jjtree)*/
     } catch (Throwable jjte000) {
       if (jjtc000) {
         jjtree.clearNodeScope(jjtn000);
@@ -427,18 +558,16 @@ String fieldName = null;
 /*@egen*/
 }
 
-protected String fieldName():
-{/*@bgen(jjtree) fieldName */
-SimpleNode jjtn000 = new SimpleNode(JJTFIELDNAME);
-boolean jjtc000 = true;
-jjtree.openNodeScope(jjtn000);
-/*@egen*/
-String fieldName = null;
-}
+String fieldName():{/*@bgen(jjtree) fieldName */
+                    SimpleNode jjtn000 = new SimpleNode(JJTFIELDNAME);
+                    boolean jjtc000 = true;
+                    jjtree.openNodeScope(jjtn000);
+/*@egen*/String fieldName = null;EventWrapper currentew = stack.get(stack.size() - 1);}
 {/*@bgen(jjtree) fieldName */
     try {
 /*@egen*/
     (
+      //some JSON systems use Javascript's single-quote mark
       <SINGLE_QUOTED_STRING>
         {
           fieldName = stripOffQuotes(token.image);
@@ -452,7 +581,11 @@ String fieldName = null;
       //some JSON systems now accept 'naked' JSON Objects
       <IDENTIFIER>
         {
-          fieldName = token.image;
+          if (strict) {
+              throw new ParseException("'strict' mode violation - JSON key name should not be un-quoted");          }
+          else {
+              fieldName = token.image;
+          }
         }
     )/*@bgen(jjtree)*/
     {
@@ -461,6 +594,7 @@ String fieldName = null;
     }
 /*@egen*/
     {
+      currentew.location = new JsonLocationImpl(token);
       return fieldName;
     }/*@bgen(jjtree)*/
     } finally {
@@ -471,27 +605,30 @@ String fieldName = null;
 /*@egen*/
 }
 
-protected List _array():
-{/*@bgen(jjtree) _array */
-SimpleNode jjtn000 = new SimpleNode(JJT_ARRAY);
-boolean jjtc000 = true;
-jjtree.openNodeScope(jjtn000);
-/*@egen*/
-List a=new ArrayList();
-}
+void _array():{/*@bgen(jjtree) _array */
+               SimpleNode jjtn000 = new SimpleNode(JJT_ARRAY);
+               boolean jjtc000 = true;
+               jjtree.openNodeScope(jjtn000);
+/*@egen*/Token t = null;}
 {/*@bgen(jjtree) _array */
     try {
 /*@egen*/
-    <O_OPENBRACKET> ( elements(a) )? <O_CLOSEBRACKET>/*@bgen(jjtree)*/
-    {
-      jjtree.closeNodeScope(jjtn000, true);
-      jjtc000 = false;
-    }
+    t=<O_OPENBRACKET>
+      {
+        EventWrapper currentew = stack.get(stack.size() - 1);
+        currentew.location = new JsonLocationImpl(t);
+      }
+        (elements())? t=<O_CLOSEBRACKET>/*@bgen(jjtree)*/
+          {
+            jjtree.closeNodeScope(jjtn000, true);
+            jjtc000 = false;
+          }
 /*@egen*/
-    {
-        Collections.reverse(a);
-        return a;
-    }/*@bgen(jjtree)*/
+          {
+            EventWrapper ew = new EventWrapper(Event.END_ARRAY);
+            ew.location = new JsonLocationImpl(t);
+            stack.add(ew);
+        }/*@bgen(jjtree)*/
     } catch (Throwable jjte000) {
       if (jjtc000) {
         jjtree.clearNodeScope(jjtn000);
@@ -514,26 +651,15 @@ List a=new ArrayList();
 /*@egen*/
 }
 
-protected void elements(List a):
-{/*@bgen(jjtree) elements */
-SimpleNode jjtn000 = new SimpleNode(JJTELEMENTS);
-boolean jjtc000 = true;
-jjtree.openNodeScope(jjtn000);
-/*@egen*/
-Object o = null;
-}
+void elements():{/*@bgen(jjtree) elements */
+  SimpleNode jjtn000 = new SimpleNode(JJTELEMENTS);
+  boolean jjtc000 = true;
+  jjtree.openNodeScope(jjtn000);
+/*@egen*/}
 {/*@bgen(jjtree) elements */
     try {
 /*@egen*/
-    o=value() [ <O_COMMA> elements(a) ]/*@bgen(jjtree)*/
-    {
-      jjtree.closeNodeScope(jjtn000, true);
-      jjtc000 = false;
-    }
-/*@egen*/
-    {
-        a.add(o);
-    }/*@bgen(jjtree)*/
+    value() [ <O_COMMA> elements() ]/*@bgen(jjtree)*/
     } catch (Throwable jjte000) {
       if (jjtc000) {
         jjtree.clearNodeScope(jjtn000);
@@ -556,53 +682,112 @@ Object o = null;
 /*@egen*/
 }
 
-protected Object value():
-{/*@bgen(jjtree) value */
-SimpleNode jjtn000 = new SimpleNode(JJTVALUE);
-boolean jjtc000 = true;
-jjtree.openNodeScope(jjtn000);
-/*@egen*/
-Token t = null;
-Object o = null;
-}
+void value():{/*@bgen(jjtree) value */
+              SimpleNode jjtn000 = new SimpleNode(JJTVALUE);
+              boolean jjtc000 = true;
+              jjtree.openNodeScope(jjtn000);
+/*@egen*/Token t = null;EventWrapper ew = null;}
 {/*@bgen(jjtree) value */
     try {
 /*@egen*/
-    (   o=_object()
-    |   o=_array()
-    |   t=<IDENTIFIER> {o = t.image;} //'naked' values, too
-    |   t=<SINGLE_QUOTED_STRING> {o = stripOffQuotes(t.image);}
-    |   t=<QUOTED_STRING> {o = stripOffQuotes(t.image);}
-    |   t=<NUMBER>
-        {
-            try {
-              o = Integer.valueOf(t.image);
-            }
-            catch (NumberFormatException nfe1) {
-                try {
-                     o = new BigInteger(t.image);
-                }
-                catch  (NumberFormatException nfe2) {
-                    try {
-                         o = new BigDecimal(t.image);
-                    }
-                    catch  (NumberFormatException nfe3) {
-                         o = Double.NaN;
-                    }
-                }
-            }
-        }
-    |   <K_TRUE> {o = Boolean.TRUE;}
-    |   <K_FALSE> {o = Boolean.FALSE;}
-    |   <K_NULL> )/*@bgen(jjtree)*/
-    {
-      jjtree.closeNodeScope(jjtn000, true);
-      jjtc000 = false;
-    }
+    (
+         {stack.add(new EventWrapper(Event.START_OBJECT));} _object()
+	  |  {stack.add(new EventWrapper(Event.START_ARRAY));} _array()
+	  |  t=<IDENTIFIER>/*@bgen(jjtree)*/
+               {
+                 jjtree.closeNodeScope(jjtn000, true);
+                 jjtc000 = false;
+               }
 /*@egen*/
-    {
-        return o;
-    }/*@bgen(jjtree)*/
+	       {
+	          if (strict) {
+	              throw new ParseException("'strict' mode violation - JSON string values should not be un-quoted");
+	          }
+	          else {
+		          ew = new EventWrapper(Event.VALUE_STRING);
+		          ew.s = t.image; //'naked' values, too
+		          ew.location = new JsonLocationImpl(t);
+		          stack.add(ew);
+              }
+	       }
+	  |  t=<SINGLE_QUOTED_STRING>/*@bgen(jjtree)*/
+           {
+             jjtree.closeNodeScope(jjtn000, true);
+             jjtc000 = false;
+           }
+/*@egen*/
+           {
+             ew = new EventWrapper(Event.VALUE_STRING);
+             ew.s = stripOffQuotes(t.image);
+             ew.location = new JsonLocationImpl(t);
+             stack.add(ew);
+           }
+	  |  t=<QUOTED_STRING>/*@bgen(jjtree)*/
+           {
+             jjtree.closeNodeScope(jjtn000, true);
+             jjtc000 = false;
+           }
+/*@egen*/
+           {
+             ew = new EventWrapper(Event.VALUE_STRING);
+             ew.s = stripOffQuotes(t.image);
+             ew.location = new JsonLocationImpl(t);
+             stack.add(ew);
+           }
+	  |  t=<NUMBER>/*@bgen(jjtree)*/
+               {
+                 jjtree.closeNodeScope(jjtn000, true);
+                 jjtc000 = false;
+               }
+/*@egen*/
+	       {
+             ew = new EventWrapper(Event.VALUE_NUMBER);
+             ew.location = new JsonLocationImpl(t);
+             ew.type = EventWrapper.NumType.TYPE_BIGDECIMAL;
+	         try {
+                BigInteger biNum = new BigInteger(t.image);
+                if (biNum.compareTo(bigMinInt) > -1 && biNum.compareTo(bigMaxInt) < 1) {
+                    ew.i = biNum.intValue();
+                    ew.type = EventWrapper.NumType.TYPE_INT;
+                    ew.isIntegralNumber = true;
+                }
+                else if (biNum.compareTo(bigMinLong) > -1 && biNum.compareTo(bigMaxLong) < 1) {
+                    ew.l = biNum.longValue();
+                    ew.type = EventWrapper.NumType.TYPE_LONG;
+                    ew.isIntegralNumber = true;
+                }
+                else {
+                    ew.bd = new BigDecimal(biNum);                }
+             }
+             catch (NumberFormatException nfe1) {
+	             try {
+	                  ew.bd = new BigDecimal(t.image);
+	             }
+	             catch  (NumberFormatException nfe2) {
+	                 ew.bd = BigDecimal.valueOf(Double.NaN);
+	             }
+	         }
+	         stack.add(ew);
+	       }
+	  |  <K_TRUE>/*@bgen(jjtree)*/
+                      {
+                        jjtree.closeNodeScope(jjtn000, true);
+                        jjtc000 = false;
+                      }
+/*@egen*/ {stack.add(new EventWrapper(Event.VALUE_TRUE));}
+	  |  <K_FALSE>/*@bgen(jjtree)*/
+                       {
+                         jjtree.closeNodeScope(jjtn000, true);
+                         jjtc000 = false;
+                       }
+/*@egen*/ {stack.add(new EventWrapper(Event.VALUE_FALSE));}
+	  |  <K_NULL>/*@bgen(jjtree)*/
+                      {
+                        jjtree.closeNodeScope(jjtn000, true);
+                        jjtc000 = false;
+                      }
+/*@egen*/ {stack.add(new EventWrapper(Event.VALUE_NULL));}
+    )/*@bgen(jjtree)*/
     } catch (Throwable jjte000) {
       if (jjtc000) {
         jjtree.clearNodeScope(jjtn000);

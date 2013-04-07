@@ -26,52 +26,206 @@ package org.mwnorman.json;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.NoSuchElementException;
+
+//JSR-353 imports
+import javax.json.stream.JsonLocation;
+import javax.json.stream.JsonParser;
 
 @SuppressWarnings("all")
-public class JSONParser/*@bgen(jjtree)*/implements JSONParserTreeConstants, JSONParserConstants {/*@bgen(jjtree)*/
+public class JSONParser implements/*@bgen(jjtree)*/ JSONParserTreeConstants,JsonParser, JSONParserConstants {/*@bgen(jjtree)*/
   protected JJTJSONParserState jjtree = new JJTJSONParserState();
-    static protected String stripOffQuotes(String quotedString) {
+    //static helpers
+    static final BigInteger bigMaxInt =  BigInteger.valueOf(Integer.MAX_VALUE);
+    static final BigInteger bigMinInt =  BigInteger.valueOf(Integer.MIN_VALUE);
+    static final BigInteger bigMaxLong =  BigInteger.valueOf(Long.MAX_VALUE);
+    static final BigInteger bigMinLong =  BigInteger.valueOf(Long.MIN_VALUE);
+
+    static String stripOffQuotes(String quotedString) {
         return quotedString.substring(1, quotedString.length() - 1);
     }
-    public static String TRUE_ATOM = stripOffQuotes(tokenImage[K_TRUE]);
-    public static String FALSE_ATOM = stripOffQuotes(tokenImage[K_FALSE]);
+
+    public static class JsonLocationImpl implements JsonLocation {
+        int line;
+        int column;
+        public JsonLocationImpl(int line, int column) {
+            this.line = line;
+            this.column = column;
+        }
+        public JsonLocationImpl(Token t) {
+            this(t.beginLine, t.beginColumn);
+        }
+        public int getLineNumber() {
+            return line;
+        }
+        public int getColumnNumber() {
+            return column;
+        }
+        public int getStreamOffset() {
+            return -1;
+        }
+    }
+    public static final JsonLocation NULL_LOCATION = new JsonLocationImpl(-1,-1);
+
+    static class EventWrapper {
+        enum NumType {TYPE_NONE, TYPE_INT, TYPE_LONG, TYPE_BIGDECIMAL}
+        Event event = null;
+        JsonLocation location = NULL_LOCATION;
+        String s = null;
+        boolean isIntegralNumber = false;
+        EventWrapper.NumType type = EventWrapper.NumType.TYPE_NONE;
+        int i;
+        long l;
+        BigDecimal bd = null;
+        EventWrapper(Event event) {
+            this.event = event;
+        }
+        public String toString() {
+            return event.toString();
+        }
+    }
+
+    List<EventWrapper> stack = new ArrayList<EventWrapper>();
+    EventWrapper currentEvent = null;
+    int currIdx = 0;
+    boolean strict = false;
 
     public JSONParser() {
         super();
     }
 
-    //cheat to sorta get generics on productions
-    public <A> List<A> array() throws ParseException {
-        return _array();
-    }
-    public <T> Map<String, T> object() throws ParseException {
-        return _object();
+    //non-standard APIs
+    List<EventWrapper> getStack() {
+        return stack;
     }
 
-  final public Object parse() throws ParseException {
- /*@bgen(jjtree) parse */
-SimpleNode jjtn000 = new SimpleNode(JJTPARSE);
-boolean jjtc000 = true;
-jjtree.openNodeScope(jjtn000);Object o = null;
+    public Event peek() {
+        return stack.get(currIdx).event;
+    }
+
+    public void setStrict() {
+        strict = true;
+    }
+
+    //JSR-353 standard APIs
+
+    public boolean hasNext() {
+        if (stack.isEmpty() || currIdx == stack.size()) {
+            return false;
+        }
+        return true;
+    }
+
+    public Event next() {
+        currentEvent = stack.get(currIdx++);
+        return currentEvent.event;
+    }
+
+    public String getString() {
+        if (currentEvent == null) {
+            return null;
+        }
+        return currentEvent.s;
+    }
+
+    public boolean isIntegralNumber() {
+        if (currentEvent == null) {
+            return false;
+        }
+        return currentEvent.isIntegralNumber;
+    }
+
+    public int getInt() {
+        if (currentEvent == null) {
+            return 0;
+        }
+        return currentEvent.i;
+    }
+
+    public long getLong() {
+        if (currentEvent == null) {
+            return 0l;
+        }
+        return currentEvent.l;
+    }
+
+    public BigDecimal getBigDecimal() {
+        if (currentEvent == null) {
+            return null;
+        }
+        return currentEvent.bd;
+    }
+
+    public JsonLocation getLocation() {
+        if (currentEvent == null) {
+            return NULL_LOCATION;
+        }
+        return currentEvent.location;
+    }
+
+        public void close() {
+            stack.clear();
+            currentEvent = null;
+        }
+
+/*
+Grammar without all the interspersed impl. code: pls see http://www.ietf.org/rfc/rfc4627.txt for JSON spec
+void parse():{}
+{
+    (_object() | _array()) //a JSON doc 
+}
+void _object():{}
+{
+    <O_OPENBRACE> (members())? <O_CLOSEBRACE>
+}
+void members():{}
+{
+    pair() [<O_COMMA> members()]
+}
+void pair():{}
+{
+    fieldName() <O_COLON> value()
+}
+void fieldName():{}
+{
+    (<SINGLE_QUOTED_STRING> | <QUOTED_STRING> | <IDENTIFIER>)
+                                               //some JSON systems now accept 'naked' JSON Objects
+}
+void _array():{}
+{
+    <O_OPENBRACKET> (elements())? <O_CLOSEBRACKET>
+}
+void elements():{}
+{
+    value() [<O_COMMA> elements()]
+}
+void value():{}
+{
+    (_object() | _array() | <IDENTIFIER> | <SINGLE_QUOTED_STRING> | <QUOTED_STRING> | <NUMBER> | <K_TRUE> | <K_FALSE> | <K_NULL>)
+                          //'naked' values, too
+}
+*/
+  final public void parse() throws ParseException {
+              /*@bgen(jjtree) parse */
+  SimpleNode jjtn000 = new SimpleNode(JJTPARSE);
+  boolean jjtc000 = true;
+  jjtree.openNodeScope(jjtn000);
     try {
       switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
       case O_OPENBRACE:
-        o = _object();
+         stack.add(new EventWrapper(Event.START_OBJECT));
+        _object();
         break;
       case O_OPENBRACKET:
-        o = _array();
+         stack.add(new EventWrapper(Event.START_ARRAY));
+        _array();
         break;
       default:
+        jj_la1[0] = jj_gen;
         jj_consume_token(-1);
         throw new ParseException();
       }
-      jjtree.closeNodeScope(jjtn000, true);
-      jjtc000 = false;
-        {if (true) return o;}
     } catch (Throwable jjte000) {
       if (jjtc000) {
         jjtree.clearNodeScope(jjtn000);
@@ -91,29 +245,33 @@ jjtree.openNodeScope(jjtn000);Object o = null;
         jjtree.closeNodeScope(jjtn000, true);
       }
     }
-    throw new Error("Missing return statement in function");
   }
 
-  final protected Map _object() throws ParseException {
- /*@bgen(jjtree) _object */
-SimpleNode jjtn000 = new SimpleNode(JJT_OBJECT);
-boolean jjtc000 = true;
-jjtree.openNodeScope(jjtn000);Map m = new LinkedHashMap();
+  final public void _object() throws ParseException {
+                /*@bgen(jjtree) _object */
+                SimpleNode jjtn000 = new SimpleNode(JJT_OBJECT);
+                boolean jjtc000 = true;
+                jjtree.openNodeScope(jjtn000);Token t = null;
     try {
-      jj_consume_token(O_OPENBRACE);
+      t = jj_consume_token(O_OPENBRACE);
+        EventWrapper currentew = stack.get(stack.size() - 1);
+        currentew.location = new JsonLocationImpl(t);
       switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
       case QUOTED_STRING:
       case SINGLE_QUOTED_STRING:
       case IDENTIFIER:
-        members(m);
+        members();
         break;
       default:
+        jj_la1[1] = jj_gen;
         ;
       }
-      jj_consume_token(O_CLOSEBRACE);
-      jjtree.closeNodeScope(jjtn000, true);
-      jjtc000 = false;
-        {if (true) return m;}
+      t = jj_consume_token(O_CLOSEBRACE);
+           jjtree.closeNodeScope(jjtn000, true);
+           jjtc000 = false;
+           EventWrapper ew = new EventWrapper(Event.END_OBJECT);
+           ew.location = new JsonLocationImpl(t);
+           stack.add(ew);
     } catch (Throwable jjte000) {
       if (jjtc000) {
         jjtree.clearNodeScope(jjtn000);
@@ -133,22 +291,22 @@ jjtree.openNodeScope(jjtn000);Map m = new LinkedHashMap();
         jjtree.closeNodeScope(jjtn000, true);
       }
     }
-    throw new Error("Missing return statement in function");
   }
 
-  final protected void members(Map m) throws ParseException {
- /*@bgen(jjtree) members */
+  final public void members() throws ParseException {
+                /*@bgen(jjtree) members */
   SimpleNode jjtn000 = new SimpleNode(JJTMEMBERS);
   boolean jjtc000 = true;
   jjtree.openNodeScope(jjtn000);
     try {
-      pair(m);
+      pair();
       switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
       case O_COMMA:
         jj_consume_token(O_COMMA);
-        members(m);
+        members();
         break;
       default:
+        jj_la1[2] = jj_gen;
         ;
       }
     } catch (Throwable jjte000) {
@@ -172,20 +330,18 @@ jjtree.openNodeScope(jjtn000);Map m = new LinkedHashMap();
     }
   }
 
-  final protected void pair(Map m) throws ParseException {
- /*@bgen(jjtree) pair */
-SimpleNode jjtn000 = new SimpleNode(JJTPAIR);
-boolean jjtc000 = true;
-jjtree.openNodeScope(jjtn000);Token t = null;
-Object o;
-String fieldName = null;
+  final public void pair() throws ParseException {
+             /*@bgen(jjtree) pair */
+             SimpleNode jjtn000 = new SimpleNode(JJTPAIR);
+             boolean jjtc000 = true;
+             jjtree.openNodeScope(jjtn000);String fieldName = null;
     try {
+      EventWrapper ew = new EventWrapper(Event.KEY_NAME);
+      stack.add(ew);
       fieldName = fieldName();
+        ew.s = fieldName;
       jj_consume_token(O_COLON);
-      o = value();
-      jjtree.closeNodeScope(jjtn000, true);
-      jjtc000 = false;
-        m.put(fieldName, o);
+      value();
     } catch (Throwable jjte000) {
       if (jjtc000) {
         jjtree.clearNodeScope(jjtn000);
@@ -207,11 +363,11 @@ String fieldName = null;
     }
   }
 
-  final protected String fieldName() throws ParseException {
- /*@bgen(jjtree) fieldName */
-SimpleNode jjtn000 = new SimpleNode(JJTFIELDNAME);
-boolean jjtc000 = true;
-jjtree.openNodeScope(jjtn000);String fieldName = null;
+  final public String fieldName() throws ParseException {
+                    /*@bgen(jjtree) fieldName */
+                    SimpleNode jjtn000 = new SimpleNode(JJTFIELDNAME);
+                    boolean jjtc000 = true;
+                    jjtree.openNodeScope(jjtn000);String fieldName = null;EventWrapper currentew = stack.get(stack.size() - 1);
     try {
       switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
       case SINGLE_QUOTED_STRING:
@@ -224,14 +380,21 @@ jjtree.openNodeScope(jjtn000);String fieldName = null;
         break;
       case IDENTIFIER:
         jj_consume_token(IDENTIFIER);
-          fieldName = token.image;
+          if (strict) {
+              {if (true) throw new ParseException("'strict' mode violation - JSON key name should not be un-quoted");}
+          }
+          else {
+              fieldName = token.image;
+          }
         break;
       default:
+        jj_la1[3] = jj_gen;
         jj_consume_token(-1);
         throw new ParseException();
       }
       jjtree.closeNodeScope(jjtn000, true);
       jjtc000 = false;
+      currentew.location = new JsonLocationImpl(token);
       {if (true) return fieldName;}
     } finally {
       if (jjtc000) {
@@ -241,13 +404,15 @@ jjtree.openNodeScope(jjtn000);String fieldName = null;
     throw new Error("Missing return statement in function");
   }
 
-  final protected List _array() throws ParseException {
- /*@bgen(jjtree) _array */
-SimpleNode jjtn000 = new SimpleNode(JJT_ARRAY);
-boolean jjtc000 = true;
-jjtree.openNodeScope(jjtn000);List a=new ArrayList();
+  final public void _array() throws ParseException {
+               /*@bgen(jjtree) _array */
+               SimpleNode jjtn000 = new SimpleNode(JJT_ARRAY);
+               boolean jjtc000 = true;
+               jjtree.openNodeScope(jjtn000);Token t = null;
     try {
-      jj_consume_token(O_OPENBRACKET);
+      t = jj_consume_token(O_OPENBRACKET);
+        EventWrapper currentew = stack.get(stack.size() - 1);
+        currentew.location = new JsonLocationImpl(t);
       switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
       case K_TRUE:
       case K_FALSE:
@@ -258,16 +423,18 @@ jjtree.openNodeScope(jjtn000);List a=new ArrayList();
       case QUOTED_STRING:
       case SINGLE_QUOTED_STRING:
       case IDENTIFIER:
-        elements(a);
+        elements();
         break;
       default:
+        jj_la1[4] = jj_gen;
         ;
       }
-      jj_consume_token(O_CLOSEBRACKET);
-      jjtree.closeNodeScope(jjtn000, true);
-      jjtc000 = false;
-        Collections.reverse(a);
-        {if (true) return a;}
+      t = jj_consume_token(O_CLOSEBRACKET);
+            jjtree.closeNodeScope(jjtn000, true);
+            jjtc000 = false;
+            EventWrapper ew = new EventWrapper(Event.END_ARRAY);
+            ew.location = new JsonLocationImpl(t);
+            stack.add(ew);
     } catch (Throwable jjte000) {
       if (jjtc000) {
         jjtree.clearNodeScope(jjtn000);
@@ -287,27 +454,24 @@ jjtree.openNodeScope(jjtn000);List a=new ArrayList();
         jjtree.closeNodeScope(jjtn000, true);
       }
     }
-    throw new Error("Missing return statement in function");
   }
 
-  final protected void elements(List a) throws ParseException {
- /*@bgen(jjtree) elements */
-SimpleNode jjtn000 = new SimpleNode(JJTELEMENTS);
-boolean jjtc000 = true;
-jjtree.openNodeScope(jjtn000);Object o = null;
+  final public void elements() throws ParseException {
+                 /*@bgen(jjtree) elements */
+  SimpleNode jjtn000 = new SimpleNode(JJTELEMENTS);
+  boolean jjtc000 = true;
+  jjtree.openNodeScope(jjtn000);
     try {
-      o = value();
+      value();
       switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
       case O_COMMA:
         jj_consume_token(O_COMMA);
-        elements(a);
+        elements();
         break;
       default:
+        jj_la1[5] = jj_gen;
         ;
       }
-      jjtree.closeNodeScope(jjtn000, true);
-      jjtc000 = false;
-        a.add(o);
     } catch (Throwable jjte000) {
       if (jjtc000) {
         jjtree.clearNodeScope(jjtn000);
@@ -329,69 +493,109 @@ jjtree.openNodeScope(jjtn000);Object o = null;
     }
   }
 
-  final protected Object value() throws ParseException {
- /*@bgen(jjtree) value */
-SimpleNode jjtn000 = new SimpleNode(JJTVALUE);
-boolean jjtc000 = true;
-jjtree.openNodeScope(jjtn000);Token t = null;
-Object o = null;
+  final public void value() throws ParseException {
+              /*@bgen(jjtree) value */
+              SimpleNode jjtn000 = new SimpleNode(JJTVALUE);
+              boolean jjtc000 = true;
+              jjtree.openNodeScope(jjtn000);Token t = null;EventWrapper ew = null;
     try {
       switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
       case O_OPENBRACE:
-        o = _object();
+          stack.add(new EventWrapper(Event.START_OBJECT));
+        _object();
         break;
       case O_OPENBRACKET:
-        o = _array();
+              stack.add(new EventWrapper(Event.START_ARRAY));
+        _array();
         break;
       case IDENTIFIER:
         t = jj_consume_token(IDENTIFIER);
-                        o = t.image;
+                 jjtree.closeNodeScope(jjtn000, true);
+                 jjtc000 = false;
+                  if (strict) {
+                      {if (true) throw new ParseException("'strict' mode violation - JSON string values should not be un-quoted");}
+                  }
+                  else {
+                          ew = new EventWrapper(Event.VALUE_STRING);
+                          ew.s = t.image; //'naked' values, too
+                          ew.location = new JsonLocationImpl(t);
+                          stack.add(ew);
+              }
         break;
       case SINGLE_QUOTED_STRING:
         t = jj_consume_token(SINGLE_QUOTED_STRING);
-                                  o = stripOffQuotes(t.image);
+             jjtree.closeNodeScope(jjtn000, true);
+             jjtc000 = false;
+             ew = new EventWrapper(Event.VALUE_STRING);
+             ew.s = stripOffQuotes(t.image);
+             ew.location = new JsonLocationImpl(t);
+             stack.add(ew);
         break;
       case QUOTED_STRING:
         t = jj_consume_token(QUOTED_STRING);
-                           o = stripOffQuotes(t.image);
+             jjtree.closeNodeScope(jjtn000, true);
+             jjtc000 = false;
+             ew = new EventWrapper(Event.VALUE_STRING);
+             ew.s = stripOffQuotes(t.image);
+             ew.location = new JsonLocationImpl(t);
+             stack.add(ew);
         break;
       case NUMBER:
         t = jj_consume_token(NUMBER);
-            try {
-              o = Integer.valueOf(t.image);
-            }
-            catch (NumberFormatException nfe1) {
-                try {
-                     o = new BigInteger(t.image);
+                 jjtree.closeNodeScope(jjtn000, true);
+                 jjtc000 = false;
+             ew = new EventWrapper(Event.VALUE_NUMBER);
+             ew.location = new JsonLocationImpl(t);
+             ew.type = EventWrapper.NumType.TYPE_BIGDECIMAL;
+                 try {
+                BigInteger biNum = new BigInteger(t.image);
+                if (biNum.compareTo(bigMinInt) > -1 && biNum.compareTo(bigMaxInt) < 1) {
+                    ew.i = biNum.intValue();
+                    ew.type = EventWrapper.NumType.TYPE_INT;
+                    ew.isIntegralNumber = true;
                 }
-                catch  (NumberFormatException nfe2) {
-                    try {
-                         o = new BigDecimal(t.image);
-                    }
-                    catch  (NumberFormatException nfe3) {
-                         o = Double.NaN;
-                    }
+                else if (biNum.compareTo(bigMinLong) > -1 && biNum.compareTo(bigMaxLong) < 1) {
+                    ew.l = biNum.longValue();
+                    ew.type = EventWrapper.NumType.TYPE_LONG;
+                    ew.isIntegralNumber = true;
                 }
-            }
+                else {
+                    ew.bd = new BigDecimal(biNum);
+                }
+             }
+             catch (NumberFormatException nfe1) {
+                     try {
+                          ew.bd = new BigDecimal(t.image);
+                     }
+                     catch  (NumberFormatException nfe2) {
+                         ew.bd = BigDecimal.valueOf(Double.NaN);
+                     }
+                 }
+                 stack.add(ew);
         break;
       case K_TRUE:
         jj_consume_token(K_TRUE);
-                  o = Boolean.TRUE;
+                        jjtree.closeNodeScope(jjtn000, true);
+                        jjtc000 = false;
+                       stack.add(new EventWrapper(Event.VALUE_TRUE));
         break;
       case K_FALSE:
         jj_consume_token(K_FALSE);
-                   o = Boolean.FALSE;
+                         jjtree.closeNodeScope(jjtn000, true);
+                         jjtc000 = false;
+                        stack.add(new EventWrapper(Event.VALUE_FALSE));
         break;
       case K_NULL:
         jj_consume_token(K_NULL);
+                        jjtree.closeNodeScope(jjtn000, true);
+                        jjtc000 = false;
+                       stack.add(new EventWrapper(Event.VALUE_NULL));
         break;
       default:
+        jj_la1[6] = jj_gen;
         jj_consume_token(-1);
         throw new ParseException();
       }
-      jjtree.closeNodeScope(jjtn000, true);
-      jjtc000 = false;
-        {if (true) return o;}
     } catch (Throwable jjte000) {
       if (jjtc000) {
         jjtree.clearNodeScope(jjtn000);
@@ -411,7 +615,6 @@ Object o = null;
         jjtree.closeNodeScope(jjtn000, true);
       }
     }
-    throw new Error("Missing return statement in function");
   }
 
   /** Generated Token Manager. */
@@ -422,6 +625,20 @@ Object o = null;
   /** Next token. */
   public Token jj_nt;
   private int jj_ntk;
+  private int jj_gen;
+  final private int[] jj_la1 = new int[7];
+  static private int[] jj_la1_0;
+  static private int[] jj_la1_1;
+  static {
+      jj_la1_init_0();
+      jj_la1_init_1();
+   }
+   private static void jj_la1_init_0() {
+      jj_la1_0 = new int[] {0xa0000,0x0,0x200000,0x0,0x100bc000,0x200000,0x100bc000,};
+   }
+   private static void jj_la1_init_1() {
+      jj_la1_1 = new int[] {0x0,0xe,0x0,0xe,0xe,0x0,0xe,};
+   }
 
   /** Constructor with InputStream. */
   public JSONParser(java.io.InputStream stream) {
@@ -433,6 +650,8 @@ Object o = null;
     token_source = new JSONParserTokenManager(jj_input_stream);
     token = new Token();
     jj_ntk = -1;
+    jj_gen = 0;
+    for (int i = 0; i < 7; i++) jj_la1[i] = -1;
   }
 
   /** Reinitialise. */
@@ -446,6 +665,8 @@ Object o = null;
     token = new Token();
     jj_ntk = -1;
     jjtree.reset();
+    jj_gen = 0;
+    for (int i = 0; i < 7; i++) jj_la1[i] = -1;
   }
 
   /** Constructor. */
@@ -454,6 +675,8 @@ Object o = null;
     token_source = new JSONParserTokenManager(jj_input_stream);
     token = new Token();
     jj_ntk = -1;
+    jj_gen = 0;
+    for (int i = 0; i < 7; i++) jj_la1[i] = -1;
   }
 
   /** Reinitialise. */
@@ -463,6 +686,8 @@ Object o = null;
     token = new Token();
     jj_ntk = -1;
     jjtree.reset();
+    jj_gen = 0;
+    for (int i = 0; i < 7; i++) jj_la1[i] = -1;
   }
 
   /** Constructor with generated Token Manager. */
@@ -470,6 +695,8 @@ Object o = null;
     token_source = tm;
     token = new Token();
     jj_ntk = -1;
+    jj_gen = 0;
+    for (int i = 0; i < 7; i++) jj_la1[i] = -1;
   }
 
   /** Reinitialise. */
@@ -478,6 +705,8 @@ Object o = null;
     token = new Token();
     jj_ntk = -1;
     jjtree.reset();
+    jj_gen = 0;
+    for (int i = 0; i < 7; i++) jj_la1[i] = -1;
   }
 
   private Token jj_consume_token(int kind) throws ParseException {
@@ -486,9 +715,11 @@ Object o = null;
     else token = token.next = token_source.getNextToken();
     jj_ntk = -1;
     if (token.kind == kind) {
+      jj_gen++;
       return token;
     }
     token = oldToken;
+    jj_kind = kind;
     throw generateParseException();
   }
 
@@ -498,6 +729,7 @@ Object o = null;
     if (token.next != null) token = token.next;
     else token = token.next = token_source.getNextToken();
     jj_ntk = -1;
+    jj_gen++;
     return token;
   }
 
@@ -518,12 +750,42 @@ Object o = null;
       return (jj_ntk = jj_nt.kind);
   }
 
+  private java.util.List<int[]> jj_expentries = new java.util.ArrayList<int[]>();
+  private int[] jj_expentry;
+  private int jj_kind = -1;
+
   /** Generate ParseException. */
   public ParseException generateParseException() {
-    Token errortok = token.next;
-    int line = errortok.beginLine, column = errortok.beginColumn;
-    String mess = (errortok.kind == 0) ? tokenImage[0] : errortok.image;
-    return new ParseException("Parse error at line " + line + ", column " + column + ".  Encountered: " + mess);
+    jj_expentries.clear();
+    boolean[] la1tokens = new boolean[37];
+    if (jj_kind >= 0) {
+      la1tokens[jj_kind] = true;
+      jj_kind = -1;
+    }
+    for (int i = 0; i < 7; i++) {
+      if (jj_la1[i] == jj_gen) {
+        for (int j = 0; j < 32; j++) {
+          if ((jj_la1_0[i] & (1<<j)) != 0) {
+            la1tokens[j] = true;
+          }
+          if ((jj_la1_1[i] & (1<<j)) != 0) {
+            la1tokens[32+j] = true;
+          }
+        }
+      }
+    }
+    for (int i = 0; i < 37; i++) {
+      if (la1tokens[i]) {
+        jj_expentry = new int[1];
+        jj_expentry[0] = i;
+        jj_expentries.add(jj_expentry);
+      }
+    }
+    int[][] exptokseq = new int[jj_expentries.size()][];
+    for (int i = 0; i < jj_expentries.size(); i++) {
+      exptokseq[i] = jj_expentries.get(i);
+    }
+    return new ParseException(token, exptokseq, tokenImage);
   }
 
   /** Enable tracing. */

@@ -22,26 +22,43 @@
 package org.mwnorman.json.test;
 
 //javase imports
+import java.io.PrintWriter;
 import java.io.StringReader;
 import java.math.BigDecimal;
-import java.math.BigInteger;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+
+//java eXtension imports (JSR-353)
+import javax.json.JsonValue;
+import javax.json.spi.JsonProvider;
+import javax.json.stream.JsonParser;
+import javax.json.stream.JsonParser.Event;
+import javax.json.stream.JsonParsingException;
+
+import static javax.json.stream.JsonParser.Event.END_ARRAY;
+import static javax.json.stream.JsonParser.Event.END_OBJECT;
+import static javax.json.stream.JsonParser.Event.KEY_NAME;
+import static javax.json.stream.JsonParser.Event.START_ARRAY;
+import static javax.json.stream.JsonParser.Event.START_OBJECT;
+import static javax.json.stream.JsonParser.Event.VALUE_FALSE;
+import static javax.json.stream.JsonParser.Event.VALUE_NULL;
+import static javax.json.stream.JsonParser.Event.VALUE_NUMBER;
+import static javax.json.stream.JsonParser.Event.VALUE_STRING;
+import static javax.json.stream.JsonParser.Event.VALUE_TRUE;
 
 //JUnit4 imports
+import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.fail;
 
-//domain-specific imports
+//my parser imports
 import org.mwnorman.json.JSONParser;
+import org.mwnorman.json.JSONParserDisplayer;
 import org.mwnorman.json.ParseException;
-import static org.mwnorman.json.JSONParser.TRUE_ATOM;
-import static org.mwnorman.json.JSONParser.FALSE_ATOM;
 
 public class JSONParserTestSuite {
 
@@ -58,285 +75,467 @@ public class JSONParserTestSuite {
     static final String C_COMMENT_END = "*/";
     static final String HTML_COMMENT_START = "<!--";
     static final String HTML_COMMENT_END = "-->";
-    static final String KEY = "key";
-    static final String VALUE = "value";
 
+    static boolean isValueEvent(Event event) {
+        if (event.ordinal() > KEY_NAME.ordinal() && event.ordinal() < END_OBJECT.ordinal()) {
+            return true;
+        }
+        return false;
+    }
+    static boolean isEndEvent(Event event) {
+        if (event == END_ARRAY || event == END_OBJECT) {
+            return true;
+        }
+        return false;
+    }
+    static boolean isStartEvent(Event event) {
+        if (event == START_ARRAY || event == START_OBJECT) {
+            return true;
+        }
+        return false;
+    }
+    static void displayJsonEvent(PrintWriter pw, Event event, JsonParser parser) {
+        StringBuilder sb = new StringBuilder();
+        int lineNumber = parser.getLocation().getLineNumber();
+        if (lineNumber != -1) {
+            sb.append("(");
+            sb.append(lineNumber);
+            sb.append("lx");
+            sb.append(parser.getLocation().getColumnNumber());
+            sb.append("c)");
+        }
+        switch (event) {
+            case END_ARRAY:
+                sb.append("]");
+                break;
+            case END_OBJECT:
+                sb.append("}");
+                break;
+            case KEY_NAME:
+                sb.append("\"");
+                sb.append(parser.getString());
+                sb.append("\":");
+                break;
+            case START_ARRAY:
+                sb.append("[");
+                break;
+            case START_OBJECT:
+                sb.append("{");
+                break;
+            case VALUE_FALSE:
+                sb.append(JsonValue.FALSE);
+                break;
+            case VALUE_NULL:
+                sb.append(JsonValue.NULL);
+                break;
+            case VALUE_NUMBER:
+                BigDecimal bd = parser.getBigDecimal();
+                if (bd != null) {
+                    sb.append(bd);
+                }
+                else {
+                    long l = parser.getLong();
+                    int i = parser.getInt();
+                    if (l == 0 && i !=0) {
+                        sb.append(i);
+                    }
+                    else {
+                        sb.append(l);
+                    }
+                }
+                break;
+            case VALUE_STRING:
+                sb.append("\"");
+                sb.append(parser.getString());
+                sb.append("\"");
+                break;
+            case VALUE_TRUE:
+                sb.append(JsonValue.TRUE.toString());
+                break;
+            default:
+                break;
+        }
+        pw.print(sb.toString());
+        pw.flush();
+    }
+
+    //JUnit4 fixtures
+    static JsonProvider provider  = null;
+
+    @BeforeClass
+    public static void setUp() {
+        try {
+            provider = JsonProvider.provider();
+        }
+        catch (JsonParsingException jpe) {
+            fail(jpe.getMessage());
+        }
+    }
+
+    static final String TEST_JSON_STR1 =
+        "{" +
+            "\"firstName\": \"John\", \"lastName\": \"Smith\", \"age\": 25, " +
+            "\"phoneNumber\":[" +
+                "{\"type\": \"home\", \"number\": \"212 555-1234\"}," +
+                "{\"type\": \"fax\", \"number\": \"646 555-4567\"}" +
+            "]" +
+        "}";
+    @Ignore
+    public void getMyParser() {
+        StringReader stringReader = new StringReader(TEST_JSON_STR1);
+        JsonParser parser = provider.createParser(stringReader);
+        JSONParserDisplayer jsonDisplayer = new JSONParserDisplayer((JSONParser)parser);
+        jsonDisplayer.display(new PrintWriter(System.out));
+        //use JSR-353 API to re-create JSONParserDisplayer
+        PrintWriter pw = new PrintWriter(System.out);
+        while (parser.hasNext()) {
+            Event event = parser.next();
+            displayJsonEvent(pw, event, parser);
+            if (parser.hasNext()) {
+                Event nextevent = ((JSONParser)parser).peek(); //cheat!
+                if (!(nextevent == Event.END_ARRAY ||
+                    nextevent == Event.END_OBJECT ||
+                    nextevent == Event.START_OBJECT ||
+                    nextevent == Event.START_ARRAY ||
+                    nextevent == Event.KEY_NAME)) {
+                    pw.print(" ");
+                }
+                else if (event == Event.VALUE_STRING && nextevent == Event.KEY_NAME) {
+                    pw.print(", ");
+                }
+                else if (event == Event.VALUE_NUMBER  && nextevent == Event.KEY_NAME) {
+                    pw.print(", ");
+                }
+                else if ((event == Event.END_OBJECT || event == Event.END_ARRAY)  &&
+                    (nextevent == Event.START_OBJECT || nextevent == Event.START_ARRAY)) {
+                    pw.print(",");
+                }
+            }
+        }
+        pw.flush();
+    }
     @Test
     public void trueAtom() {
-        StringReader stringReader = new StringReader(OPEN_BRACKET + TRUE_ATOM + CLOSE_BRACKET);
-        JSONParser parser = new JSONParser(stringReader);
-        boolean worked = true;
-        List<Boolean> parsedJSON = null;
+        StringReader stringReader = new StringReader(OPEN_BRACKET + JsonValue.TRUE.toString() +
+            CLOSE_BRACKET);
+        boolean worked = false;
+        JsonParser parser = null;
         try {
-            parsedJSON = parser.<Boolean>array();
-        } catch (ParseException e) {
-            worked = false;
+            parser = provider.createParser(stringReader);
+            worked = true;
+        }
+        catch (JsonParsingException jpe) {
         }
         assertTrue(worked);
-        assertNotNull(parsedJSON);
-        Boolean atom = parsedJSON.get(0);
-        assertNotNull(atom);
-        assertSame(Boolean.TRUE, atom);
+        Event e1 = parser.next();
+        assertSame(START_ARRAY, e1);
+        Event e2 = parser.next();
+        assertSame(VALUE_TRUE, e2);
+        Event e3 = parser.next();
+        assertSame(END_ARRAY, e3);
     }
-    
+
     @Test
     public void falseAtom() {
-        StringReader stringReader = new StringReader(OPEN_BRACKET + FALSE_ATOM + CLOSE_BRACKET);
-        JSONParser parser = new JSONParser(stringReader);
-        boolean worked = true;
-        List<Boolean> parsedJSON = null;
+        StringReader stringReader = new StringReader(OPEN_BRACKET + JsonValue.FALSE.toString() +
+            CLOSE_BRACKET);
+        boolean worked = false;
+        JsonParser parser = null;
         try {
-            parsedJSON = parser.<Boolean>array();
-        } catch (ParseException e) {
-            worked = false;
+            parser = provider.createParser(stringReader);
+            worked = true;
+        }
+        catch (JsonParsingException jpe) {
         }
         assertTrue(worked);
-        assertNotNull(parsedJSON);
-        Boolean atom = parsedJSON.get(0);
-        assertNotNull(atom);
-        assertSame(Boolean.FALSE, atom);
+        Event e1 = parser.next();
+        assertSame(START_ARRAY, e1);
+        Event e2 = parser.next();
+        assertSame(VALUE_FALSE, e2);
+        Event e3 = parser.next();
+        assertSame(END_ARRAY, e3);
     }
-    
+
     @Test
     public void Ccomment1() {
-        StringReader stringReader = 
+        StringReader stringReader =
                 new StringReader(C_COMMENT_START + "stuff to ignore" + C_COMMENT_END +
-                    OPEN_BRACKET + TRUE_ATOM + CLOSE_BRACKET);
-        JSONParser parser = new JSONParser(stringReader);
-        boolean worked = true;
-        List<Boolean> parsedJSON = null;
+                    OPEN_BRACKET + JsonValue.TRUE.toString() + CLOSE_BRACKET);
+        boolean worked = false;
+        JsonParser parser = null;
         try {
-            parsedJSON = parser.<Boolean>array();
-        } catch (ParseException e) {
-            worked = false;
+            parser = provider.createParser(stringReader);
+            worked = true;
         }
-        assertTrue(worked);
-        assertNotNull(parsedJSON);
-        Boolean atom = parsedJSON.get(0);
-        assertNotNull(atom);
-        assertSame(Boolean.TRUE, atom); 
+        catch (JsonParsingException jpe) {
+        }
+        assertTrue(worked);        Event e1 = parser.next();
+        assertSame(START_ARRAY, e1);
+        Event e2 = parser.next();
+        assertSame(VALUE_TRUE, e2);
+        Event e3 = parser.next();
+        assertSame(END_ARRAY, e3);
     }
-    
+
     @Test
     public void Ccomment2() {
-        StringReader stringReader = 
+        StringReader stringReader =
                 new StringReader(OPEN_BRACKET + C_COMMENT_START + "stuff to ignore" + C_COMMENT_END +
-                    TRUE_ATOM + CLOSE_BRACKET);
-        JSONParser parser = new JSONParser(stringReader);
-        boolean worked = true;
-        List<Boolean> parsedJSON = null;
+                    JsonValue.TRUE.toString() + CLOSE_BRACKET);
+        boolean worked = false;
+        JsonParser parser = null;
         try {
-            parsedJSON = parser.<Boolean>array();
-        } catch (ParseException e) {
-            worked = false;
+            parser = provider.createParser(stringReader);
+            worked = true;
+        }
+        catch (JsonParsingException jpe) {
         }
         assertTrue(worked);
-        assertNotNull(parsedJSON);
-        Boolean atom = parsedJSON.get(0);
-        assertNotNull(atom);
-        assertSame(Boolean.TRUE, atom); 
+        Event e1 = parser.next();
+        assertSame(START_ARRAY, e1);
+        Event e2 = parser.next();
+        assertSame(VALUE_TRUE, e2);
+        Event e3 = parser.next();
+        assertSame(END_ARRAY, e3);
     }
-    
+
     @Test
     public void Ccomment3() {
-        StringReader stringReader = new StringReader(OPEN_BRACKET + TRUE_ATOM + C_COMMENT_START +
-            "stuff to ignore" + C_COMMENT_END + CLOSE_BRACKET);
-        JSONParser parser = new JSONParser(stringReader);
-        boolean worked = true;
-        List<Boolean> parsedJSON = null;
+        StringReader stringReader = new StringReader(OPEN_BRACKET + JsonValue.TRUE.toString() +
+            C_COMMENT_START + "stuff to ignore" + C_COMMENT_END + CLOSE_BRACKET);
+        boolean worked = false;
+        JsonParser parser = null;
         try {
-            parsedJSON = parser.<Boolean>array();
-        } catch (ParseException e) {
-            worked = false;
+            parser = provider.createParser(stringReader);
+            worked = true;
+        }
+        catch (JsonParsingException jpe) {
         }
         assertTrue(worked);
-        assertNotNull(parsedJSON);
-        Boolean atom = parsedJSON.get(0);
-        assertNotNull(atom);
-        assertSame(Boolean.TRUE, atom); 
+        Event e1 = parser.next();
+        assertSame(START_ARRAY, e1);
+        Event e2 = parser.next();
+        assertSame(VALUE_TRUE, e2);
+        Event e3 = parser.next();
+        assertSame(END_ARRAY, e3);
     }
-    
+
     @Test
     public void Ccomment4() {
-        StringReader stringReader = new StringReader(OPEN_BRACKET + TRUE_ATOM + CLOSE_BRACKET +
-            C_COMMENT_START + "stuff to ignore" + C_COMMENT_END);
-        JSONParser parser = new JSONParser(stringReader);
-        boolean worked = true;
-        List<Boolean> parsedJSON = null;
+        StringReader stringReader = new StringReader(OPEN_BRACKET + JsonValue.TRUE.toString() +
+            CLOSE_BRACKET + C_COMMENT_START + "stuff to ignore" + C_COMMENT_END);
+        boolean worked = false;
+        JsonParser parser = null;
         try {
-            parsedJSON = parser.<Boolean>array();
-        } catch (ParseException e) {
-            worked = false;
+            parser = provider.createParser(stringReader);
+            worked = true;
+        }
+        catch (JsonParsingException jpe) {
         }
         assertTrue(worked);
-        assertNotNull(parsedJSON);
-        Boolean atom = parsedJSON.get(0);
-        assertNotNull(atom);
-        assertSame(Boolean.TRUE, atom); 
+        Event e1 = parser.next();
+        assertSame(START_ARRAY, e1);
+        Event e2 = parser.next();
+        assertSame(VALUE_TRUE, e2);
+        Event e3 = parser.next();
+        assertSame(END_ARRAY, e3);
     }
-    
+
+
     @Test
     public void nestedCcomment() {
-        StringReader stringReader = new StringReader(OPEN_BRACKET + TRUE_ATOM + CLOSE_BRACKET +
-            C_COMMENT_START + "stuff to ignore\n" + C_COMMENT_START +
+        StringReader stringReader = new StringReader(OPEN_BRACKET + JsonValue.TRUE.toString() +
+            CLOSE_BRACKET + C_COMMENT_START + "stuff to ignore\n" + C_COMMENT_START +
             "more stuff to ignore\n" + C_COMMENT_END + C_COMMENT_END);
-        JSONParser parser = new JSONParser(stringReader);
-        boolean worked = true;
-        List<Boolean> parsedJSON = null;
+        boolean worked = false;
+        JsonParser parser = null;
         try {
-            parsedJSON = parser.<Boolean>array();
-        } catch (ParseException e) {
-            worked = false;
+            parser = provider.createParser(stringReader);
+            worked = true;
+        }
+        catch (JsonParsingException jpe) {
         }
         assertTrue(worked);
-        assertNotNull(parsedJSON);
-        Boolean atom = parsedJSON.get(0);
-        assertNotNull(atom);
-        assertSame(Boolean.TRUE, atom); 
+        Event e1 = parser.next();
+        assertSame(START_ARRAY, e1);
+        Event e2 = parser.next();
+        assertSame(VALUE_TRUE, e2);
+        Event e3 = parser.next();
+        assertSame(END_ARRAY, e3);
     }
-    
+
     @Test
     public void HTMLcomment1() {
-        StringReader stringReader = new StringReader(HTML_COMMENT_START + "stuff to ignore" + 
-            HTML_COMMENT_END + OPEN_BRACKET + TRUE_ATOM + CLOSE_BRACKET);
-        JSONParser parser = new JSONParser(stringReader);
-        boolean worked = true;
-        List<Boolean> parsedJSON = null;
+        StringReader stringReader = new StringReader(HTML_COMMENT_START + "stuff to ignore" +
+            HTML_COMMENT_END + OPEN_BRACKET + JsonValue.TRUE.toString() + CLOSE_BRACKET);
+        boolean worked = false;
+        JsonParser parser = null;
         try {
-            parsedJSON = parser.<Boolean>array();
-        } catch (ParseException e) {
-            worked = false;
+            parser = provider.createParser(stringReader);
+            worked = true;
+        }
+        catch (JsonParsingException jpe) {
         }
         assertTrue(worked);
-        assertNotNull(parsedJSON);
-        Boolean atom = parsedJSON.get(0);
-        assertNotNull(atom);
-        assertSame(Boolean.TRUE, atom); 
+        Event e1 = parser.next();
+        assertSame(START_ARRAY, e1);
+        Event e2 = parser.next();
+        assertSame(VALUE_TRUE, e2);
+        Event e3 = parser.next();
+        assertSame(END_ARRAY, e3);
     }
-    
+
     @Test
     public void HTMLcomment2() {
         StringReader stringReader = new StringReader("[" + HTML_COMMENT_START + "stuff to ignore" +
-            HTML_COMMENT_END + TRUE_ATOM + CLOSE_BRACKET);
-        JSONParser parser = new JSONParser(stringReader);
-        boolean worked = true;
-        List<Boolean> parsedJSON = null;
+            HTML_COMMENT_END + JsonValue.TRUE.toString() + CLOSE_BRACKET);
+        boolean worked = false;
+        JsonParser parser = null;
         try {
-            parsedJSON = parser.<Boolean>array();
-        } catch (ParseException e) {
-            worked = false;
+            parser = provider.createParser(stringReader);
+            worked = true;
+        }
+        catch (JsonParsingException jpe) {
         }
         assertTrue(worked);
-        assertNotNull(parsedJSON);
-        Boolean atom = parsedJSON.get(0);
-        assertNotNull(atom);
-        assertSame(Boolean.TRUE, atom); 
+        Event e1 = parser.next();
+        assertSame(START_ARRAY, e1);
+        Event e2 = parser.next();
+        assertSame(VALUE_TRUE, e2);
+        Event e3 = parser.next();
+        assertSame(END_ARRAY, e3);
     }
-    
+
     @Test
     public void HTMLcomment3() {
-        StringReader stringReader = new StringReader(OPEN_BRACKET + TRUE_ATOM + HTML_COMMENT_START +
-            "stuff to ignore" + HTML_COMMENT_END + CLOSE_BRACKET);
-        JSONParser parser = new JSONParser(stringReader);
-        boolean worked = true;
-        List<Boolean> parsedJSON = null;
+        StringReader stringReader = new StringReader(OPEN_BRACKET + JsonValue.TRUE.toString() +
+            HTML_COMMENT_START + "stuff to ignore" + HTML_COMMENT_END + CLOSE_BRACKET);
+        boolean worked = false;
+        JsonParser parser = null;
         try {
-            parsedJSON = parser.<Boolean>array();
-        } catch (ParseException e) {
-            worked = false;
+            parser = provider.createParser(stringReader);
+            worked = true;
+        }
+        catch (JsonParsingException jpe) {
         }
         assertTrue(worked);
-        assertNotNull(parsedJSON);
-        Boolean atom = parsedJSON.get(0);
-        assertNotNull(atom);
-        assertSame(Boolean.TRUE, atom); 
+        Event e1 = parser.next();
+        assertSame(START_ARRAY, e1);
+        Event e2 = parser.next();
+        assertSame(VALUE_TRUE, e2);
+        Event e3 = parser.next();
+        assertSame(END_ARRAY, e3);
     }
-    
+
     @Test
     public void HTMLcomment4() {
-        StringReader stringReader = new StringReader(OPEN_BRACKET + TRUE_ATOM + CLOSE_BRACKET +
-            HTML_COMMENT_START + "stuff to ignore" + HTML_COMMENT_END);
-        JSONParser parser = new JSONParser(stringReader);
-        boolean worked = true;
-        List<Boolean> parsedJSON = null;
+        StringReader stringReader = new StringReader(OPEN_BRACKET + JsonValue.TRUE.toString() +
+            CLOSE_BRACKET + HTML_COMMENT_START + "stuff to ignore" + HTML_COMMENT_END);
+        boolean worked = false;
+        JsonParser parser = null;
         try {
-            parsedJSON = parser.<Boolean>array();
-        } catch (ParseException e) {
-            worked = false;
+            parser = provider.createParser(stringReader);
+            worked = true;
+        }
+        catch (JsonParsingException jpe) {
         }
         assertTrue(worked);
-        assertNotNull(parsedJSON);
-        Boolean atom = parsedJSON.get(0);
-        assertNotNull(atom);
-        assertSame(Boolean.TRUE, atom); 
+        Event e1 = parser.next();
+        assertSame(START_ARRAY, e1);
+        Event e2 = parser.next();
+        assertSame(VALUE_TRUE, e2);
+        Event e3 = parser.next();
+        assertSame(END_ARRAY, e3);
     }
 
     static final String ANSWER = "42";
     @Test
     public void numberAtom1() {
         StringReader stringReader = new StringReader(OPEN_BRACKET + ANSWER + CLOSE_BRACKET);
-        JSONParser parser = new JSONParser(stringReader);
-        boolean worked = true;
-        List<Integer> parsedJSON = null;
+        boolean worked = false;
+        JsonParser parser = null;
         try {
-            parsedJSON = parser.<Integer>array();
-        } catch (ParseException e) {
-            worked = false;
+            parser = provider.createParser(stringReader);
+            worked = true;
+        }
+        catch (JsonParsingException jpe) {
         }
         assertTrue(worked);
-        assertNotNull(parsedJSON);
-        Integer atom = parsedJSON.get(0);
+        Event e1 = parser.next();
+        assertSame(START_ARRAY, e1);
+        Event e2 = parser.next();
+        assertSame(VALUE_NUMBER, e2);
+        Integer atom = parser.getInt();
         assertNotNull(atom);
         assertEquals(Integer.valueOf(42), atom);
+        Event e3 = parser.next();
+        assertSame(END_ARRAY, e3);
     }
 
     @Test
     public void extraComma() {
         StringReader stringReader = new StringReader(OPEN_BRACKET + ANSWER + COMMA + CLOSE_BRACKET);
-        JSONParser parser = new JSONParser(stringReader);
         boolean worked = true;
-        @SuppressWarnings("unused")List<Integer> parsedJSON = null;
+        String msg = "";
+        @SuppressWarnings("unused")JsonParser parser = null;
         try {
-            parsedJSON = parser.<Integer>array();
-        } catch (ParseException e) {
+            parser = provider.createParser(stringReader);
+        }
+        catch (JsonParsingException jpe) {
             worked = false;
+            msg = jpe.getMessage();
         }
         assertFalse(worked);
+        assertTrue(msg.contains("Encountered") && msg.contains("expecting"));
     }
-    
+
     @Test
     public void emptyElement() {
-        StringReader stringReader = new StringReader(OPEN_BRACKET + ANSWER + COMMA + COMMA + CLOSE_BRACKET);
-        JSONParser parser = new JSONParser(stringReader);
+        StringReader stringReader = new StringReader(OPEN_BRACKET + ANSWER + COMMA + COMMA +
+            CLOSE_BRACKET);
         boolean worked = true;
-        @SuppressWarnings("unused")List<Integer> parsedJSON = null;
+        String msg = "";
+        @SuppressWarnings("unused")JsonParser parser = null;
         try {
-            parsedJSON = parser.<Integer>array();
-        } catch (ParseException e) {
+            parser = provider.createParser(stringReader);
+        }
+        catch (JsonParsingException jpe) {
             worked = false;
+            msg = jpe.getMessage();
         }
         assertFalse(worked);
+        assertTrue(msg.contains("Encountered") && msg.contains("expecting"));
     }
-    
+
     static final String REALLY_BIG_INT = "12345678901234567890123456789012345678901234567890";
     @Test
     public void numberAtom2() {
         StringReader stringReader = new StringReader(OPEN_BRACKET + REALLY_BIG_INT + CLOSE_BRACKET);
-        JSONParser parser = new JSONParser(stringReader);
-        boolean worked = true;
-        List<BigInteger> parsedJSON = null;
+        boolean worked = false;
+        JsonParser parser = null;
         try {
-            parsedJSON = parser.<BigInteger>array();
-        } catch (ParseException e) {
-            worked = false;
+            parser = provider.createParser(stringReader);
+            worked = true;
+        }
+        catch (JsonParsingException jpe) {
         }
         assertTrue(worked);
-        assertNotNull(parsedJSON);
-        BigInteger atom = parsedJSON.get(0);
-        assertNotNull(atom);
-        assertEquals(new BigInteger(REALLY_BIG_INT), atom);
+        Event e1 = parser.next();
+        assertSame(START_ARRAY, e1);
+        Event e2 = parser.next();
+        assertSame(VALUE_NUMBER, e2);
+        int i = parser.getInt();
+        assertEquals(0, i);
+        long l = parser.getLong();
+        assertEquals(0l, l);
+        BigDecimal bd = parser.getBigDecimal();
+        Event e3 = parser.next();
+        assertSame(END_ARRAY, e3);
+        BigDecimal atom = new BigDecimal(REALLY_BIG_INT);
+        assertEquals(bd, atom);
     }
 
+    /*
     static final String REALLY_BIG_DECIMAL = "123456789012345678901.23456789012345678901234567890";
     @Test
     public void numberAtom3() {
@@ -375,7 +574,7 @@ public class JSONParserTestSuite {
         assertNotNull(atom);
         assertEquals(new BigDecimal("00.10"), atom);
     }
-    
+
     static final String EMPTY_JSON_OBJECT ="{}";
     @Test
     public void emtyMap() {
@@ -392,7 +591,7 @@ public class JSONParserTestSuite {
         assertNotNull(parsedJSON);
         assertTrue(parsedJSON.isEmpty());
     }
-    
+
     static final String NO_DOUBLE_SLASH_IN_KEY =
         OPEN_BRACE +
             QUOTE + KEY + QUOTE + ":" + QUOTE + VALUE + QUOTE +
@@ -500,5 +699,5 @@ public class JSONParserTestSuite {
         String firstKey = (String)firstKeys.iterator().next();
         assertEquals("1", firstKey);
     }
-
+*/
 }
