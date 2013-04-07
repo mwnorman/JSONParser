@@ -1,4 +1,7 @@
-A JavaCC-based JSR-353 compliant JSON Parser.
+A JavaCC-based JSON Parser.
 
 The grammar productions are based on the 'railroad' diagrams
 at json.org and RFC 4627 (http://www.ietf.org/rfc/rfc4627.txt)
+
+JSON objects are represented as Java Maps (concrete class LinkedHashMap)
+and JSON arrays are represented as Java Lists (concrete class ArrayList)
