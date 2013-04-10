@@ -75,6 +75,8 @@ public class JSONParserTestSuite {
     static final String C_COMMENT_END = "*/";
     static final String HTML_COMMENT_START = "<!--";
     static final String HTML_COMMENT_END = "-->";
+    static final String KEY = "key";
+    static final String VALUE = "value";
 
     static boolean isValueEvent(Event event) {
         if (event.ordinal() > KEY_NAME.ordinal() && event.ordinal() < END_OBJECT.ordinal()) {
@@ -96,7 +98,7 @@ public class JSONParserTestSuite {
     }
     static void displayJsonEvent(PrintWriter pw, Event event, JsonParser parser) {
         StringBuilder sb = new StringBuilder();
-        int lineNumber = parser.getLocation().getLineNumber();
+        long lineNumber = parser.getLocation().getLineNumber();
         if (lineNumber != -1) {
             sb.append("(");
             sb.append(lineNumber);
@@ -233,6 +235,7 @@ public class JSONParserTestSuite {
         assertSame(VALUE_TRUE, e2);
         Event e3 = parser.next();
         assertSame(END_ARRAY, e3);
+        assertFalse(parser.hasNext());
     }
 
     @Test
@@ -254,6 +257,7 @@ public class JSONParserTestSuite {
         assertSame(VALUE_FALSE, e2);
         Event e3 = parser.next();
         assertSame(END_ARRAY, e3);
+        assertFalse(parser.hasNext());
     }
 
     @Test
@@ -275,6 +279,7 @@ public class JSONParserTestSuite {
         assertSame(VALUE_TRUE, e2);
         Event e3 = parser.next();
         assertSame(END_ARRAY, e3);
+        assertFalse(parser.hasNext());
     }
 
     @Test
@@ -297,6 +302,7 @@ public class JSONParserTestSuite {
         assertSame(VALUE_TRUE, e2);
         Event e3 = parser.next();
         assertSame(END_ARRAY, e3);
+        assertFalse(parser.hasNext());
     }
 
     @Test
@@ -318,6 +324,7 @@ public class JSONParserTestSuite {
         assertSame(VALUE_TRUE, e2);
         Event e3 = parser.next();
         assertSame(END_ARRAY, e3);
+        assertFalse(parser.hasNext());
     }
 
     @Test
@@ -339,6 +346,7 @@ public class JSONParserTestSuite {
         assertSame(VALUE_TRUE, e2);
         Event e3 = parser.next();
         assertSame(END_ARRAY, e3);
+        assertFalse(parser.hasNext());
     }
 
 
@@ -362,6 +370,7 @@ public class JSONParserTestSuite {
         assertSame(VALUE_TRUE, e2);
         Event e3 = parser.next();
         assertSame(END_ARRAY, e3);
+        assertFalse(parser.hasNext());
     }
 
     @Test
@@ -383,6 +392,7 @@ public class JSONParserTestSuite {
         assertSame(VALUE_TRUE, e2);
         Event e3 = parser.next();
         assertSame(END_ARRAY, e3);
+        assertFalse(parser.hasNext());
     }
 
     @Test
@@ -404,6 +414,7 @@ public class JSONParserTestSuite {
         assertSame(VALUE_TRUE, e2);
         Event e3 = parser.next();
         assertSame(END_ARRAY, e3);
+        assertFalse(parser.hasNext());
     }
 
     @Test
@@ -425,6 +436,7 @@ public class JSONParserTestSuite {
         assertSame(VALUE_TRUE, e2);
         Event e3 = parser.next();
         assertSame(END_ARRAY, e3);
+        assertFalse(parser.hasNext());
     }
 
     @Test
@@ -446,6 +458,7 @@ public class JSONParserTestSuite {
         assertSame(VALUE_TRUE, e2);
         Event e3 = parser.next();
         assertSame(END_ARRAY, e3);
+        assertFalse(parser.hasNext());
     }
 
     static final String ANSWER = "42";
@@ -470,6 +483,7 @@ public class JSONParserTestSuite {
         assertEquals(Integer.valueOf(42), atom);
         Event e3 = parser.next();
         assertSame(END_ARRAY, e3);
+        assertFalse(parser.hasNext());
     }
 
     @Test
@@ -533,26 +547,32 @@ public class JSONParserTestSuite {
         assertSame(END_ARRAY, e3);
         BigDecimal atom = new BigDecimal(REALLY_BIG_INT);
         assertEquals(bd, atom);
+        assertFalse(parser.hasNext());
     }
 
-    /*
     static final String REALLY_BIG_DECIMAL = "123456789012345678901.23456789012345678901234567890";
     @Test
     public void numberAtom3() {
         StringReader stringReader = new StringReader(OPEN_BRACKET + REALLY_BIG_DECIMAL + CLOSE_BRACKET);
-        JSONParser parser = new JSONParser(stringReader);
-        boolean worked = true;
-        List<BigDecimal> parsedJSON = null;
+        boolean worked = false;
+        JsonParser parser = null;
         try {
-            parsedJSON = parser.<BigDecimal>array();
-        } catch (ParseException e) {
-            worked = false;
+            parser = provider.createParser(stringReader);
+            worked = true;
+        }
+        catch (JsonParsingException jpe) {
         }
         assertTrue(worked);
-        assertNotNull(parsedJSON);
-        BigDecimal atom = parsedJSON.get(0);
-        assertNotNull(atom);
-        assertEquals(new BigDecimal(REALLY_BIG_DECIMAL), atom);
+        Event e1 = parser.next();
+        assertSame(START_ARRAY, e1);
+        Event e2 = parser.next();
+        assertSame(VALUE_NUMBER, e2);
+        BigDecimal rbd = parser.getBigDecimal();
+        assertNotNull(rbd);
+        assertEquals(new BigDecimal(REALLY_BIG_DECIMAL), rbd);
+        Event e3 = parser.next();
+        assertSame(END_ARRAY, e3);
+        assertFalse(parser.hasNext());
     }
 
     static final String LEADING_ZEROS = "00.10";
@@ -560,36 +580,45 @@ public class JSONParserTestSuite {
     public void numberAtom4() {
         //extra leading zero should NOT throw an exception
         StringReader stringReader = new StringReader(OPEN_BRACKET + LEADING_ZEROS + CLOSE_BRACKET);
-        JSONParser parser = new JSONParser(stringReader);
-        boolean worked = true;
-        List<BigDecimal> parsedJSON = null;
+        boolean worked = false;
+        JsonParser parser = null;
         try {
-            parsedJSON = parser.<BigDecimal>array();
-        } catch (ParseException e) {
-            worked = false;
+            parser = provider.createParser(stringReader);
+            worked = true;
+        }
+        catch (JsonParsingException jpe) {
         }
         assertTrue(worked);
-        assertNotNull(parsedJSON);
-        BigDecimal atom = parsedJSON.get(0);
-        assertNotNull(atom);
-        assertEquals(new BigDecimal("00.10"), atom);
+        Event e1 = parser.next();
+        assertSame(START_ARRAY, e1);
+        Event e2 = parser.next();
+        assertSame(VALUE_NUMBER, e2);
+        BigDecimal leadingZeros = parser.getBigDecimal();
+        assertNotNull(leadingZeros);
+        assertEquals(new BigDecimal(LEADING_ZEROS), leadingZeros);
+        Event e3 = parser.next();
+        assertSame(END_ARRAY, e3);
+        assertFalse(parser.hasNext());
     }
 
     static final String EMPTY_JSON_OBJECT ="{}";
     @Test
-    public void emtyMap() {
+    public void emptyJsonObject() {
         StringReader stringReader = new StringReader(EMPTY_JSON_OBJECT);
-        JSONParser parser = new JSONParser(stringReader);
-        boolean worked = true;
-        Map<String, Object> parsedJSON = null;
+        boolean worked = false;
+        JsonParser parser = null;
         try {
-            parsedJSON = parser.object();
-        } catch (ParseException e) {
-            worked = false;
+            parser = provider.createParser(stringReader);
+            worked = true;
+        }
+        catch (JsonParsingException jpe) {
         }
         assertTrue(worked);
-        assertNotNull(parsedJSON);
-        assertTrue(parsedJSON.isEmpty());
+        Event e1 = parser.next();
+        assertSame(START_OBJECT, e1);
+        Event e2 = parser.next();
+        assertSame(END_OBJECT, e2);
+        assertFalse(parser.hasNext());
     }
 
     static final String NO_DOUBLE_SLASH_IN_KEY =
@@ -599,18 +628,28 @@ public class JSONParserTestSuite {
     @Test
     public void noDoubleSlashAtEnd() {
         StringReader stringReader = new StringReader(NO_DOUBLE_SLASH_IN_KEY);
-        JSONParser parser = new JSONParser(stringReader);
-        boolean worked = true;
-        Map<String, String> parsedJSON = null;
+        boolean worked = false;
+        JsonParser parser = null;
         try {
-            parsedJSON = parser.<String>object();
-        } catch (ParseException e) {
-            worked = false;
+            parser = provider.createParser(stringReader);
+            worked = true;
+        }
+        catch (JsonParsingException jpe) {
         }
         assertTrue(worked);
-        assertNotNull(parsedJSON);
-        String k = parsedJSON.get(KEY);
-        assertEquals(VALUE, k);
+        Event e1 = parser.next();
+        assertSame(START_OBJECT, e1);
+        Event e2 = parser.next();
+        assertSame(KEY_NAME, e2);
+        String key = parser.getString();
+        assertEquals(KEY, key);
+        Event e3 = parser.next();
+        assertSame(VALUE_STRING, e3);
+        String value = parser.getString();
+        assertEquals(VALUE, value);
+        Event e4 = parser.next();
+        assertSame(END_OBJECT, e4);
+        assertFalse(parser.hasNext());
     }
 
     static final String DOUBLE_SLASH_IN_KEY =
@@ -620,18 +659,28 @@ public class JSONParserTestSuite {
     @Test
     public void doubleSlashAtEnd() {
         StringReader stringReader = new StringReader(DOUBLE_SLASH_IN_KEY);
-        JSONParser parser = new JSONParser(stringReader);
-        boolean worked = true;
-        Map<String, String> parsedJSON = null;
+        boolean worked = false;
+        JsonParser parser = null;
         try {
-            parsedJSON = parser.<String>object();
-        } catch (ParseException e) {
-            worked = false;
+            parser = provider.createParser(stringReader);
+            worked = true;
+        }
+        catch (JsonParsingException jpe) {
         }
         assertTrue(worked);
-        assertNotNull(parsedJSON);
-        String k = parsedJSON.keySet().iterator().next();
-        assertTrue(k.endsWith(DOUBLE_SLASH));
+        Event e1 = parser.next();
+        assertSame(START_OBJECT, e1);
+        Event e2 = parser.next();
+        assertSame(KEY_NAME, e2);
+        String key = parser.getString();
+        assertEquals(KEY+DOUBLE_SLASH, key);
+        Event e3 = parser.next();
+        assertSame(VALUE_STRING, e3);
+        String value = parser.getString();
+        assertEquals(VALUE, value);
+        Event e4 = parser.next();
+        assertSame(END_OBJECT, e4);
+        assertFalse(parser.hasNext());
     }
 
     static final String ATTRS = "Attrs.Attr";
@@ -641,63 +690,73 @@ public class JSONParserTestSuite {
     @Test
     public void dollarSignInKey() {
         StringReader stringReader = new StringReader(DOLLAR_SIGN_IN_KEY);
-        JSONParser parser = new JSONParser(stringReader);
-        boolean worked = true;
-        @SuppressWarnings("rawtypes")Map parsedJSON = null;
+        boolean worked = false;
+        JsonParser parser = null;
         try {
-            parsedJSON = parser.object();
-        } catch (ParseException e) {
-            worked = false;
+            parser = provider.createParser(stringReader);
+            worked = true;
+        }
+        catch (JsonParsingException jpe) {
         }
         assertTrue(worked);
-        assertNotNull(parsedJSON);
-        @SuppressWarnings("rawtypes")Map innerMap = (Map)parsedJSON.get(ATTRS);
-        String dollarAllKey = (String)innerMap.keySet().iterator().next();
-        assertTrue(dollarAllKey.startsWith(DOLLAR_SIGN));
+        Event e1 = parser.next();
+        assertSame(START_OBJECT, e1);
+        Event e2 = parser.next();
+        assertSame(KEY_NAME, e2);
+        String attrsKey = parser.getString();
+        assertTrue(attrsKey.startsWith(ATTRS));
+        Event e3 = parser.next();
+        assertSame(START_OBJECT, e3);
+        Event e4 = parser.next();
+        assertSame(KEY_NAME, e4);
+        String dollarAllKey = parser.getString();
+        assertEquals(DOLLAR_SIGN + "all", dollarAllKey);
     }
 
     static final String NAKED_KEY = "bike";
     static final String NAKED_VALUE = "harley";
     @Test
     public void nakedStrings() {
-        StringReader stringReader = new StringReader(OPEN_BRACE + NAKED_KEY + COLON + NAKED_VALUE + CLOSE_BRACE);
-        JSONParser parser = new JSONParser(stringReader);
-        boolean worked = true;
-        Map<String,String> parsedJSON = null;
+        StringReader stringReader = new StringReader(OPEN_BRACE + NAKED_KEY + COLON + NAKED_VALUE +
+            CLOSE_BRACE);
+        boolean worked = false;
+        JsonParser parser = null;
         try {
-            parsedJSON = parser.<String>object();
-        } catch (ParseException e) {
-            worked = false;
+            parser = provider.createParser(stringReader);
+            worked = true;
+        }
+        catch (JsonParsingException jpe) {
         }
         assertTrue(worked);
-        assertNotNull(parsedJSON);
-        String k = parsedJSON.keySet().iterator().next();
-        assertEquals(k, NAKED_KEY);
-        assertEquals(parsedJSON.get(NAKED_KEY), NAKED_VALUE);
+        Event e1 = parser.next();
+        assertSame(START_OBJECT, e1);
+        Event e2 = parser.next();
+        assertSame(KEY_NAME, e2);
+        String nakedKey = parser.getString();
+        assertEquals(nakedKey, NAKED_KEY);
+        Event e3 = parser.next();
+        assertSame(VALUE_STRING, e3);
+        String nakedValue = parser.getString();
+        assertEquals(nakedValue, NAKED_VALUE);
+        Event e4 = parser.next();
+        assertSame(END_OBJECT, e4);
+        assertFalse(parser.hasNext());
     }
-    static final String NESTED_ARRAY =
-        "[0,{\"1\":{\"2\":{\"3\":{\"4\":[5,{\"6\":7}]}}}}]";
+
+    static final String NESTED_ARRAY = "[0,{\"1\":{\"2\":{\"3\":{\"4\":[5,{\"6\":7}]}}}}]";
     @Test
     public void nestedMaps() {
         StringReader stringReader = new StringReader(NESTED_ARRAY);
-        JSONParser parser = new JSONParser(stringReader);
-        boolean worked = true;
-        @SuppressWarnings("rawtypes")List parsedJSON = null;
+        boolean worked = false;
+        JsonParser parser = null;
         try {
-            parsedJSON = parser.array();
-        } catch (ParseException e) {
-            worked = false;
+            parser = provider.createParser(stringReader);
+            worked = true;
+        }
+        catch (JsonParsingException jpe) {
         }
         assertTrue(worked);
-        assertNotNull(parsedJSON);
-        Integer firstValue = (Integer)parsedJSON.get(0);
-        assertEquals(0L, firstValue.longValue());
-        @SuppressWarnings("rawtypes")Map firstMap = (Map)parsedJSON.get(1);
-        assertNotNull(firstMap);
-        @SuppressWarnings("rawtypes")Set firstKeys = firstMap.keySet();
-        assertTrue(firstKeys.size() == 1);
-        String firstKey = (String)firstKeys.iterator().next();
-        assertEquals("1", firstKey);
+        parser.hasNext();
     }
-*/
+
 }

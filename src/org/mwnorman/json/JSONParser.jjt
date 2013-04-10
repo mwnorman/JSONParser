@@ -78,26 +78,26 @@ public class JSONParser implements JsonParser {
     }
     
     public static class JsonLocationImpl implements JsonLocation {
-        int line;
-        int column;
-        public JsonLocationImpl(int line, int column) {
+        long line;
+        long column;
+        public JsonLocationImpl(long line, long column) {
             this.line = line;
             this.column = column;
         }
         public JsonLocationImpl(Token t) {
             this(t.beginLine, t.beginColumn);
         }
-        public int getLineNumber() {
+        public long getLineNumber() {
             return line;
         }
-        public int getColumnNumber() {
+        public long getColumnNumber() {
             return column;
         }
-        public int getStreamOffset() {
-            return -1;
+        public long getStreamOffset() {
+            return -1l;
         }
     }
-    public static final JsonLocation NULL_LOCATION = new JsonLocationImpl(-1,-1);
+    public static final JsonLocation NULL_LOCATION = new JsonLocationImpl(-1l,-1l);
     
     static class EventWrapper {
         enum NumType {TYPE_NONE, TYPE_INT, TYPE_LONG, TYPE_BIGDECIMAL}
