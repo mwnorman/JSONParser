@@ -22,17 +22,18 @@
 package org.mwnorman.json.test;
 
 //javase imports
-import java.io.PrintWriter;
+import java.io.ByteArrayInputStream;
 import java.io.StringReader;
 import java.math.BigDecimal;
+import java.nio.charset.Charset;
 
+import javax.json.Json;
 //java eXtension imports (JSR-353)
 import javax.json.JsonValue;
 import javax.json.spi.JsonProvider;
 import javax.json.stream.JsonParser;
 import javax.json.stream.JsonParser.Event;
 import javax.json.stream.JsonParsingException;
-
 import static javax.json.stream.JsonParser.Event.END_ARRAY;
 import static javax.json.stream.JsonParser.Event.END_OBJECT;
 import static javax.json.stream.JsonParser.Event.KEY_NAME;
@@ -46,7 +47,6 @@ import static javax.json.stream.JsonParser.Event.VALUE_TRUE;
 
 //JUnit4 imports
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -54,11 +54,6 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
-
-//my parser imports
-import org.mwnorman.json.JSONParser;
-import org.mwnorman.json.JSONParserDisplayer;
-import org.mwnorman.json.ParseException;
 
 public class JSONParserTestSuite {
 
@@ -78,89 +73,6 @@ public class JSONParserTestSuite {
     static final String KEY = "key";
     static final String VALUE = "value";
 
-    static boolean isValueEvent(Event event) {
-        if (event.ordinal() > KEY_NAME.ordinal() && event.ordinal() < END_OBJECT.ordinal()) {
-            return true;
-        }
-        return false;
-    }
-    static boolean isEndEvent(Event event) {
-        if (event == END_ARRAY || event == END_OBJECT) {
-            return true;
-        }
-        return false;
-    }
-    static boolean isStartEvent(Event event) {
-        if (event == START_ARRAY || event == START_OBJECT) {
-            return true;
-        }
-        return false;
-    }
-    static void displayJsonEvent(PrintWriter pw, Event event, JsonParser parser) {
-        StringBuilder sb = new StringBuilder();
-        long lineNumber = parser.getLocation().getLineNumber();
-        if (lineNumber != -1) {
-            sb.append("(");
-            sb.append(lineNumber);
-            sb.append("lx");
-            sb.append(parser.getLocation().getColumnNumber());
-            sb.append("c)");
-        }
-        switch (event) {
-            case END_ARRAY:
-                sb.append("]");
-                break;
-            case END_OBJECT:
-                sb.append("}");
-                break;
-            case KEY_NAME:
-                sb.append("\"");
-                sb.append(parser.getString());
-                sb.append("\":");
-                break;
-            case START_ARRAY:
-                sb.append("[");
-                break;
-            case START_OBJECT:
-                sb.append("{");
-                break;
-            case VALUE_FALSE:
-                sb.append(JsonValue.FALSE);
-                break;
-            case VALUE_NULL:
-                sb.append(JsonValue.NULL);
-                break;
-            case VALUE_NUMBER:
-                BigDecimal bd = parser.getBigDecimal();
-                if (bd != null) {
-                    sb.append(bd);
-                }
-                else {
-                    long l = parser.getLong();
-                    int i = parser.getInt();
-                    if (l == 0 && i !=0) {
-                        sb.append(i);
-                    }
-                    else {
-                        sb.append(l);
-                    }
-                }
-                break;
-            case VALUE_STRING:
-                sb.append("\"");
-                sb.append(parser.getString());
-                sb.append("\"");
-                break;
-            case VALUE_TRUE:
-                sb.append(JsonValue.TRUE.toString());
-                break;
-            default:
-                break;
-        }
-        pw.print(sb.toString());
-        pw.flush();
-    }
-
     //JUnit4 fixtures
     static JsonProvider provider  = null;
 
@@ -174,48 +86,6 @@ public class JSONParserTestSuite {
         }
     }
 
-    static final String TEST_JSON_STR1 =
-        "{" +
-            "\"firstName\": \"John\", \"lastName\": \"Smith\", \"age\": 25, " +
-            "\"phoneNumber\":[" +
-                "{\"type\": \"home\", \"number\": \"212 555-1234\"}," +
-                "{\"type\": \"fax\", \"number\": \"646 555-4567\"}" +
-            "]" +
-        "}";
-    @Ignore
-    public void getMyParser() {
-        StringReader stringReader = new StringReader(TEST_JSON_STR1);
-        JsonParser parser = provider.createParser(stringReader);
-        JSONParserDisplayer jsonDisplayer = new JSONParserDisplayer((JSONParser)parser);
-        jsonDisplayer.display(new PrintWriter(System.out));
-        //use JSR-353 API to re-create JSONParserDisplayer
-        PrintWriter pw = new PrintWriter(System.out);
-        while (parser.hasNext()) {
-            Event event = parser.next();
-            displayJsonEvent(pw, event, parser);
-            if (parser.hasNext()) {
-                Event nextevent = ((JSONParser)parser).peek(); //cheat!
-                if (!(nextevent == Event.END_ARRAY ||
-                    nextevent == Event.END_OBJECT ||
-                    nextevent == Event.START_OBJECT ||
-                    nextevent == Event.START_ARRAY ||
-                    nextevent == Event.KEY_NAME)) {
-                    pw.print(" ");
-                }
-                else if (event == Event.VALUE_STRING && nextevent == Event.KEY_NAME) {
-                    pw.print(", ");
-                }
-                else if (event == Event.VALUE_NUMBER  && nextevent == Event.KEY_NAME) {
-                    pw.print(", ");
-                }
-                else if ((event == Event.END_OBJECT || event == Event.END_ARRAY)  &&
-                    (nextevent == Event.START_OBJECT || nextevent == Event.START_ARRAY)) {
-                    pw.print(",");
-                }
-            }
-        }
-        pw.flush();
-    }
     @Test
     public void trueAtom() {
         StringReader stringReader = new StringReader(OPEN_BRACKET + JsonValue.TRUE.toString() +
@@ -255,6 +125,28 @@ public class JSONParserTestSuite {
         assertSame(START_ARRAY, e1);
         Event e2 = parser.next();
         assertSame(VALUE_FALSE, e2);
+        Event e3 = parser.next();
+        assertSame(END_ARRAY, e3);
+        assertFalse(parser.hasNext());
+    }
+
+    @Test
+    public void nullAtom() {
+        StringReader stringReader = new StringReader(OPEN_BRACKET + JsonValue.NULL.toString() +
+            CLOSE_BRACKET);
+        boolean worked = false;
+        JsonParser parser = null;
+        try {
+            parser = provider.createParser(stringReader);
+            worked = true;
+        }
+        catch (JsonParsingException jpe) {
+        }
+        assertTrue(worked);
+        Event e1 = parser.next();
+        assertSame(START_ARRAY, e1);
+        Event e2 = parser.next();
+        assertSame(VALUE_NULL, e2);
         Event e3 = parser.next();
         assertSame(END_ARRAY, e3);
         assertFalse(parser.hasNext());
@@ -759,4 +651,92 @@ public class JSONParserTestSuite {
         parser.hasNext();
     }
 
+    //tests from JSR-353/jsonp's git repository
+    static final Charset UTF_8 = Charset.forName("UTF-8");
+    static final Charset UTF_16BE = Charset.forName("UTF-16BE");
+    static final Charset UTF_16LE = Charset.forName("UTF-16LE");
+    static final Charset UTF_16 = Charset.forName("UTF-16");
+    static final Charset UTF_32LE = Charset.forName("UTF-32LE");
+    static final Charset UTF_32BE = Charset.forName("UTF-32BE");
+
+    static void testEmptyArray(JsonParser parser) {
+        assertTrue(parser.hasNext());
+        Event e1 = parser.next();
+        assertSame(START_ARRAY, e1);
+        Event e2 = parser.next();
+        assertSame(END_ARRAY, e2);
+        assertFalse(parser.hasNext());
+    }
+
+    @Test
+    public void testReader() {
+        JsonParser reader = Json.createParser(
+                new StringReader("{ \"a\" : \"b\", \"c\" : null, \"d\" : [null, \"abc\"] }"));
+        reader.close();
+    }
+
+    @Test
+    public void testEmptyArrayReader() {
+        JsonParser parser = Json.createParser(new StringReader("[]"));
+        testEmptyArray(parser);
+        parser.close();
+    }
+
+    @Test
+    public void testEmptyArrayStream() {
+        JsonParser parser = Json.createParser(
+                new ByteArrayInputStream(new byte[]{'[', ']'}));
+        testEmptyArray(parser);
+        parser.close();
+    }
+
+    @Test
+    public void testEmptyArrayStreamUTF8() {
+        ByteArrayInputStream bin = new ByteArrayInputStream("[]".getBytes(UTF_8));
+        JsonParser parser = Json.createParser(bin);
+        testEmptyArray(parser);
+        parser.close();
+    }
+
+/*
+    @Test
+    public void testEmptyArrayStreamUTF16LE() throws UnsupportedEncodingException {
+        ByteArrayInputStream bin = new ByteArrayInputStream("[]".getBytes(UTF_16LE));
+        JsonParser parser = Json.createParser(bin);
+        testEmptyArray(parser);
+        parser.close();
+    }
+
+    @Test
+    public void testEmptyArrayStreamUTF16BE() {
+        ByteArrayInputStream bin = new ByteArrayInputStream("[]".getBytes(UTF_16BE));
+        JsonParser parser = Json.createParser(bin);
+        testEmptyArray(parser);
+        parser.close();
+    }
+
+    @Test
+    public void testEmptyArrayStreamUTF32LE() {
+        ByteArrayInputStream bin = new ByteArrayInputStream("[]".getBytes(UTF_32LE));
+        JsonParser parser = Json.createParser(bin);
+        testEmptyArray(parser);
+        parser.close();
+    }
+
+    @Test
+    public void testEmptyArrayStreamUTF32BE() {
+        ByteArrayInputStream bin = new ByteArrayInputStream("[]".getBytes(UTF_32BE));
+        JsonParser parser = Json.createParser(bin);
+        testEmptyArray(parser);
+        parser.close();
+    }
+
+    @Test
+    public void testEmptyArrayStreamUTF16() {
+        ByteArrayInputStream bin = new ByteArrayInputStream("[]".getBytes(UTF_16));
+        JsonParser parser = Json.createParser(bin);
+        testEmptyArray(parser);
+        parser.close();
+    }
+*/
 }
