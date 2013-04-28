@@ -31,7 +31,6 @@ import javax.json.stream.JsonParser.Event;
 
 //my parser imports
 import org.mwnorman.json.JSONParser.EventWrapper;
-import static org.mwnorman.json.JSONParser.NULL_LOCATION;
 
 public class JSONParserDisplayer {
 
@@ -43,15 +42,6 @@ public class JSONParserDisplayer {
 
     static String eventWrapperToString(EventWrapper ew) {
         StringBuilder sb = new StringBuilder();
-        /*
-        if (ew.location != NULL_LOCATION) {
-            sb.append("(");
-            sb.append(ew.location.getLineNumber());
-            sb.append("lx");
-            sb.append(ew.location.getColumnNumber());
-            sb.append("c)");
-        }
-        */
         switch (ew.event) {
             case END_ARRAY:
                 sb.append("]");

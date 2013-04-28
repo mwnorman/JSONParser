@@ -30,6 +30,7 @@ import java.math.BigDecimal;
 import java.nio.charset.Charset;
 
 //java eXtension imports (JSR-353)
+import javax.json.Json;
 import javax.json.JsonValue;
 import javax.json.spi.JsonProvider;
 import javax.json.stream.JsonParser;
@@ -120,7 +121,6 @@ public class JSONParserTestSuite {
             worked = true;
         }
         catch (JsonParsingException jpe) {
-            System.identityHashCode(this);
         }
         assertTrue(worked);
         testEmptyObject(parser);
@@ -136,7 +136,6 @@ public class JSONParserTestSuite {
             worked = true;
         }
         catch (JsonParsingException jpe) {
-            System.identityHashCode(this);
         }
         assertTrue(worked);
         testEmptyArray(parser);
@@ -181,6 +180,28 @@ public class JSONParserTestSuite {
         assertSame(START_ARRAY, e1);
         Event e2 = parser.next();
         assertSame(VALUE_FALSE, e2);
+        Event e3 = parser.next();
+        assertSame(END_ARRAY, e3);
+        assertFalse(parser.hasNext());
+    }
+
+    @Test
+    public void nullAtom() {
+        StringReader stringReader = new StringReader(OPEN_BRACKET + JsonValue.NULL.toString() +
+            CLOSE_BRACKET);
+        boolean worked = false;
+        JsonParser parser = null;
+        try {
+            parser = provider.createParser(stringReader);
+            worked = true;
+        }
+        catch (JsonParsingException jpe) {
+        }
+        assertTrue(worked);
+        Event e1 = parser.next();
+        assertSame(START_ARRAY, e1);
+        Event e2 = parser.next();
+        assertSame(VALUE_NULL, e2);
         Event e3 = parser.next();
         assertSame(END_ARRAY, e3);
         assertFalse(parser.hasNext());
@@ -682,8 +703,9 @@ public class JSONParserTestSuite {
         assertSame(START_ARRAY, e1);
     }
 
-    //Unicode testing
+    //tests from JSR-353/jsonp's git repository
 
+    //Unicode testing
     static final Charset UTF_8 = Charset.forName("UTF-8");
     static final Charset UTF_16BE = Charset.forName("UTF-16BE");
     static final Charset UTF_16LE = Charset.forName("UTF-16LE");
@@ -849,6 +871,29 @@ public class JSONParserTestSuite {
         Event e2 = parser.next();
         assertSame(END_ARRAY, e2);
         assertFalse(parser.hasNext());
+    }
+
+
+    @Test
+    public void testReader() {
+        JsonParser reader = Json.createParser(
+                new StringReader("{ \"a\" : \"b\", \"c\" : null, \"d\" : [null, \"abc\"] }"));
+        reader.close();
+    }
+
+    @Test
+    public void testEmptyArrayReader() {
+        JsonParser parser = Json.createParser(new StringReader("[]"));
+        testEmptyArray(parser);
+        parser.close();
+    }
+
+    @Test
+    public void testEmptyArrayStream() {
+        JsonParser parser = Json.createParser(
+                new ByteArrayInputStream(new byte[]{'[', ']'}));
+        testEmptyArray(parser);
+        parser.close();
     }
 
 }
