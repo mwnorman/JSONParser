@@ -701,6 +701,7 @@ public class JSONParserTestSuite {
         assertTrue(worked);
         Event e1 = parser.next();
         assertSame(START_ARRAY, e1);
+        //TODO more asserts
     }
 
     //tests from JSR-353/jsonp's git repository
