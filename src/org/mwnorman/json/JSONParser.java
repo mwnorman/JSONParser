@@ -164,10 +164,10 @@ public class JSONParser implements/*@bgen(jjtree)*/ JSONParserTreeConstants,Json
         return currentEvent.location;
     }
 
-        public void close() {
-            stack.clear();
-            currentEvent = null;
-        }
+    public void close() {
+        stack.clear();
+        currentEvent = null;
+    }
 
 /*
 Grammar without all the interspersed impl. code: pls see http://www.ietf.org/rfc/rfc4627.txt for JSON spec
@@ -505,21 +505,21 @@ void value():{}
         _object();
         break;
       case O_OPENBRACKET:
-              stack.add(new EventWrapper(Event.START_ARRAY));
+          stack.add(new EventWrapper(Event.START_ARRAY));
         _array();
         break;
       case IDENTIFIER:
         t = jj_consume_token(IDENTIFIER);
-                 jjtree.closeNodeScope(jjtn000, true);
-                 jjtc000 = false;
-                  if (strict) {
-                      {if (true) throw new ParseException("'strict' mode violation - JSON string values should not be un-quoted");}
-                  }
-                  else {
-                          ew = new EventWrapper(Event.VALUE_STRING);
-                          ew.s = t.image; //'naked' values, too
-                          ew.location = new JsonLocationImpl(t);
-                          stack.add(ew);
+             jjtree.closeNodeScope(jjtn000, true);
+             jjtc000 = false;
+              if (strict) {
+                  {if (true) throw new ParseException("'strict' mode violation - JSON string values should not be un-quoted");}
+              }
+              else {
+                  ew = new EventWrapper(Event.VALUE_STRING);
+                  ew.s = t.image; //'naked' values, too
+                  ew.location = new JsonLocationImpl(t);
+                  stack.add(ew);
               }
         break;
       case SINGLE_QUOTED_STRING:
@@ -542,12 +542,12 @@ void value():{}
         break;
       case NUMBER:
         t = jj_consume_token(NUMBER);
-                 jjtree.closeNodeScope(jjtn000, true);
-                 jjtc000 = false;
+             jjtree.closeNodeScope(jjtn000, true);
+             jjtc000 = false;
              ew = new EventWrapper(Event.VALUE_NUMBER);
              ew.location = new JsonLocationImpl(t);
              ew.type = EventWrapper.NumType.TYPE_BIGDECIMAL;
-                 try {
+             try {
                 BigInteger biNum = new BigInteger(t.image);
                 if (biNum.compareTo(bigMinInt) > -1 && biNum.compareTo(bigMaxInt) < 1) {
                     ew.i = biNum.intValue();
@@ -564,32 +564,32 @@ void value():{}
                 }
              }
              catch (NumberFormatException nfe1) {
-                     try {
-                          ew.bd = new BigDecimal(t.image);
-                     }
-                     catch  (NumberFormatException nfe2) {
-                         ew.bd = BigDecimal.valueOf(Double.NaN);
-                     }
+                 try {
+                      ew.bd = new BigDecimal(t.image);
                  }
-                 stack.add(ew);
+                 catch  (NumberFormatException nfe2) {
+                     ew.bd = BigDecimal.valueOf(Double.NaN);
+                 }
+             }
+             stack.add(ew);
         break;
       case K_TRUE:
         jj_consume_token(K_TRUE);
-                        jjtree.closeNodeScope(jjtn000, true);
-                        jjtc000 = false;
-                       stack.add(new EventWrapper(Event.VALUE_TRUE));
+                    jjtree.closeNodeScope(jjtn000, true);
+                    jjtc000 = false;
+                   stack.add(new EventWrapper(Event.VALUE_TRUE));
         break;
       case K_FALSE:
         jj_consume_token(K_FALSE);
-                         jjtree.closeNodeScope(jjtn000, true);
-                         jjtc000 = false;
-                        stack.add(new EventWrapper(Event.VALUE_FALSE));
+                     jjtree.closeNodeScope(jjtn000, true);
+                     jjtc000 = false;
+                    stack.add(new EventWrapper(Event.VALUE_FALSE));
         break;
       case K_NULL:
         jj_consume_token(K_NULL);
-                        jjtree.closeNodeScope(jjtn000, true);
-                        jjtc000 = false;
-                       stack.add(new EventWrapper(Event.VALUE_NULL));
+                    jjtree.closeNodeScope(jjtn000, true);
+                    jjtc000 = false;
+                   stack.add(new EventWrapper(Event.VALUE_NULL));
         break;
       default:
         jj_la1[6] = jj_gen;

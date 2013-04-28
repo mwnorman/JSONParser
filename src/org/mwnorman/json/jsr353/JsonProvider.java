@@ -74,16 +74,21 @@ public class JsonProvider extends javax.json.spi.JsonProvider {
 
     @Override
     public JsonParser createParser(InputStream in) {
-        JSONParser parser = new JSONParser(in);
+        JSONParser parser = null;
         try {
+            UnicodeWrappingInputStream uwis = new UnicodeWrappingInputStream(in);
+            parser = new JSONParser(uwis, uwis.getCharsetName());
             parser.parse();
         }
-        catch (ParseException pe) {
+        catch (Exception e) {
             JsonLocation location = NULL_LOCATION;
-            if (pe.currentToken != null && pe.currentToken.next != null) {
-                location = new JsonLocationImpl(pe.currentToken.next);
+            if (e instanceof ParseException) {
+                ParseException pe = (ParseException)e;
+                if (pe.currentToken != null && pe.currentToken.next != null) {
+                    location = new JsonLocationImpl(pe.currentToken.next);
+                }
             }
-            throw new JsonParsingException(pe.getMessage(), pe, location);
+            throw new JsonParsingException(e.getMessage(), e, location);
         }
         return parser;
     }

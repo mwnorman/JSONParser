@@ -76,7 +76,7 @@ public class JSONParser implements/*@bgen(jjtree)*/ JSONParserTreeConstants, /*@
     static final BigInteger bigMinInt =  BigInteger.valueOf(Integer.MIN_VALUE);
     static final BigInteger bigMaxLong =  BigInteger.valueOf(Long.MAX_VALUE);
     static final BigInteger bigMinLong =  BigInteger.valueOf(Long.MIN_VALUE);
-	
+    
     static String stripOffQuotes(String quotedString) {
         return quotedString.substring(1, quotedString.length() - 1);
     }
@@ -195,10 +195,10 @@ public class JSONParser implements/*@bgen(jjtree)*/ JSONParserTreeConstants, /*@
         return currentEvent.location;
     }
 
-	public void close() {
-	    stack.clear();
-	    currentEvent = null;
-	}
+    public void close() {
+        stack.clear();
+        currentEvent = null;
+    }
 }
 
 PARSER_END(JSONParser)
@@ -692,25 +692,25 @@ void value():{/*@bgen(jjtree) value */
 /*@egen*/
     (
          {stack.add(new EventWrapper(Event.START_OBJECT));} _object()
-	  |  {stack.add(new EventWrapper(Event.START_ARRAY));} _array()
-	  |  t=<IDENTIFIER>/*@bgen(jjtree)*/
-               {
-                 jjtree.closeNodeScope(jjtn000, true);
-                 jjtc000 = false;
-               }
+      |  {stack.add(new EventWrapper(Event.START_ARRAY));} _array()
+      |  t=<IDENTIFIER>/*@bgen(jjtree)*/
+           {
+             jjtree.closeNodeScope(jjtn000, true);
+             jjtc000 = false;
+           }
 /*@egen*/
-	       {
-	          if (strict) {
-	              throw new ParseException("'strict' mode violation - JSON string values should not be un-quoted");
-	          }
-	          else {
-		          ew = new EventWrapper(Event.VALUE_STRING);
-		          ew.s = t.image; //'naked' values, too
-		          ew.location = new JsonLocationImpl(t);
-		          stack.add(ew);
+           {
+              if (strict) {
+                  throw new ParseException("'strict' mode violation - JSON string values should not be un-quoted");
               }
-	       }
-	  |  t=<SINGLE_QUOTED_STRING>/*@bgen(jjtree)*/
+              else {
+                  ew = new EventWrapper(Event.VALUE_STRING);
+                  ew.s = t.image; //'naked' values, too
+                  ew.location = new JsonLocationImpl(t);
+                  stack.add(ew);
+              }
+           }
+      |  t=<SINGLE_QUOTED_STRING>/*@bgen(jjtree)*/
            {
              jjtree.closeNodeScope(jjtn000, true);
              jjtc000 = false;
@@ -722,7 +722,7 @@ void value():{/*@bgen(jjtree) value */
              ew.location = new JsonLocationImpl(t);
              stack.add(ew);
            }
-	  |  t=<QUOTED_STRING>/*@bgen(jjtree)*/
+      |  t=<QUOTED_STRING>/*@bgen(jjtree)*/
            {
              jjtree.closeNodeScope(jjtn000, true);
              jjtc000 = false;
@@ -734,17 +734,17 @@ void value():{/*@bgen(jjtree) value */
              ew.location = new JsonLocationImpl(t);
              stack.add(ew);
            }
-	  |  t=<NUMBER>/*@bgen(jjtree)*/
-               {
-                 jjtree.closeNodeScope(jjtn000, true);
-                 jjtc000 = false;
-               }
+      |  t=<NUMBER>/*@bgen(jjtree)*/
+           {
+             jjtree.closeNodeScope(jjtn000, true);
+             jjtc000 = false;
+           }
 /*@egen*/
-	       {
+           {
              ew = new EventWrapper(Event.VALUE_NUMBER);
              ew.location = new JsonLocationImpl(t);
              ew.type = EventWrapper.NumType.TYPE_BIGDECIMAL;
-	         try {
+             try {
                 BigInteger biNum = new BigInteger(t.image);
                 if (biNum.compareTo(bigMinInt) > -1 && biNum.compareTo(bigMaxInt) < 1) {
                     ew.i = biNum.intValue();
@@ -760,32 +760,32 @@ void value():{/*@bgen(jjtree) value */
                     ew.bd = new BigDecimal(biNum);                }
              }
              catch (NumberFormatException nfe1) {
-	             try {
-	                  ew.bd = new BigDecimal(t.image);
-	             }
-	             catch  (NumberFormatException nfe2) {
-	                 ew.bd = BigDecimal.valueOf(Double.NaN);
-	             }
-	         }
-	         stack.add(ew);
-	       }
-	  |  <K_TRUE>/*@bgen(jjtree)*/
-                      {
-                        jjtree.closeNodeScope(jjtn000, true);
-                        jjtc000 = false;
-                      }
+                 try {
+                      ew.bd = new BigDecimal(t.image);
+                 }
+                 catch  (NumberFormatException nfe2) {
+                     ew.bd = BigDecimal.valueOf(Double.NaN);
+                 }
+             }
+             stack.add(ew);
+           }
+      |  <K_TRUE>/*@bgen(jjtree)*/
+                  {
+                    jjtree.closeNodeScope(jjtn000, true);
+                    jjtc000 = false;
+                  }
 /*@egen*/ {stack.add(new EventWrapper(Event.VALUE_TRUE));}
-	  |  <K_FALSE>/*@bgen(jjtree)*/
-                       {
-                         jjtree.closeNodeScope(jjtn000, true);
-                         jjtc000 = false;
-                       }
+      |  <K_FALSE>/*@bgen(jjtree)*/
+                   {
+                     jjtree.closeNodeScope(jjtn000, true);
+                     jjtc000 = false;
+                   }
 /*@egen*/ {stack.add(new EventWrapper(Event.VALUE_FALSE));}
-	  |  <K_NULL>/*@bgen(jjtree)*/
-                      {
-                        jjtree.closeNodeScope(jjtn000, true);
-                        jjtc000 = false;
-                      }
+      |  <K_NULL>/*@bgen(jjtree)*/
+                  {
+                    jjtree.closeNodeScope(jjtn000, true);
+                    jjtc000 = false;
+                  }
 /*@egen*/ {stack.add(new EventWrapper(Event.VALUE_NULL));}
     )/*@bgen(jjtree)*/
     } catch (Throwable jjte000) {

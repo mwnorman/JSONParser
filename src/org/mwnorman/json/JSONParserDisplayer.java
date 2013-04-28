@@ -43,6 +43,7 @@ public class JSONParserDisplayer {
 
     static String eventWrapperToString(EventWrapper ew) {
         StringBuilder sb = new StringBuilder();
+        /*
         if (ew.location != NULL_LOCATION) {
             sb.append("(");
             sb.append(ew.location.getLineNumber());
@@ -50,6 +51,7 @@ public class JSONParserDisplayer {
             sb.append(ew.location.getColumnNumber());
             sb.append("c)");
         }
+        */
         switch (ew.event) {
             case END_ARRAY:
                 sb.append("]");
@@ -125,7 +127,6 @@ public class JSONParserDisplayer {
                 }
             }
         }
-        pw.print("\n");
         pw.flush();
     }
 }
