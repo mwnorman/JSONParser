@@ -28,12 +28,15 @@ import java.io.StringReader;
 import java.io.StringWriter;
 import java.math.BigDecimal;
 import java.nio.charset.Charset;
+import java.util.HashMap;
+import java.util.Map;
 
 //java eXtension imports (JSR-353)
 import javax.json.Json;
 import javax.json.JsonValue;
 import javax.json.spi.JsonProvider;
 import javax.json.stream.JsonParser;
+import javax.json.stream.JsonParserFactory;
 import javax.json.stream.JsonParser.Event;
 import javax.json.stream.JsonParsingException;
 import static javax.json.stream.JsonParser.Event.END_ARRAY;
@@ -49,7 +52,6 @@ import static javax.json.stream.JsonParser.Event.VALUE_TRUE;
 
 //JUnit4 imports
 import org.junit.BeforeClass;
-//import org.junit.Ignore;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -61,6 +63,8 @@ import static org.junit.Assert.fail;
 //my parser imports
 import org.mwnorman.json.JSONParser;
 import org.mwnorman.json.JSONParserDisplayer;
+import org.mwnorman.json.jsr353.JsonParserConfig;
+import org.mwnorman.json.jsr353.JsonParserUtil;
 
 public class JSONParserTestSuite {
 
@@ -895,6 +899,26 @@ public class JSONParserTestSuite {
                 new ByteArrayInputStream(new byte[]{'[', ']'}));
         testEmptyArray(parser);
         parser.close();
+    }
+
+    @Test
+    public void testParserFactory() {
+        JsonParserFactory parserFactory = Json.createParserFactory(null);
+        JsonParser parser1 = parserFactory.createParser(new StringReader("[]"));
+        parser1.close();
+        JsonParser parser2 = parserFactory.createParser(new StringReader("[]"));
+        parser2.close();
+    }
+
+    @Test
+    public void testParserFactoryWithConfig() {
+        Map<String, JsonParserConfig> config = new HashMap<String, JsonParserConfig>();
+        config.put(JsonParserConfig.CONFIG_PARSER_STRICT, JsonParserUtil.getStrictConfig());
+        JsonParserFactory parserFactory = Json.createParserFactory(config);
+        JsonParser parser1 = parserFactory.createParser(new StringReader("[]"));
+        parser1.close();
+        JsonParser parser2 = parserFactory.createParser(new StringReader("[]"));
+        parser2.close();
     }
 
 }
