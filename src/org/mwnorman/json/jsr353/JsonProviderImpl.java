@@ -163,6 +163,8 @@ public class JsonProviderImpl extends JsonProvider {
         }
         @SuppressWarnings("unchecked")
         Map<String, JsonParserConfig> jsonParserConfig = (Map<String, JsonParserConfig>)config;
+        //save it
+        this.config = jsonParserConfig;
         return new JsonParserFactoryImpl(this, jsonParserConfig);
     }
 
@@ -208,7 +210,19 @@ public class JsonProviderImpl extends JsonProvider {
 
     @Override
     public JsonReaderFactory createReaderFactory(Map<String, ?> config) {
-        return null;
+        //my provider supports a number of configs -
+        if (config != null) {
+            for (Object configValue : config.values()) {
+                if (!(configValue instanceof JsonParserConfig)) {
+                    throw problemCreatingParserFactoryUnsupportedConfig();
+                }
+            }
+        }
+        @SuppressWarnings("unchecked")
+        Map<String, JsonParserConfig> jsonParserConfig = (Map<String, JsonParserConfig>)config;
+        //save it
+        this.config = jsonParserConfig;
+    	return new JsonReaderFactoryImpl(jsonParserConfig);
     }
 
     @Override

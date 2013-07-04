@@ -21,12 +21,41 @@
  ******************************************************************************/
 package org.mwnorman.json.jsr353;
 
-import org.mwnorman.json.JSONParser;
+import java.io.InputStream;
+import java.io.Reader;
+import java.nio.charset.Charset;
+import java.util.Collections;
+import java.util.Map;
 
-public interface JsonParserConfig {
+import javax.json.JsonReader;
+import javax.json.JsonReaderFactory;
 
-    public static final String CONFIG_PARSER_STRICT = "config.parser.strict";
+public class JsonReaderFactoryImpl implements JsonReaderFactory {
+	
+	protected Map<String, JsonParserConfig> config = Collections.emptyMap();
+	
+	public JsonReaderFactoryImpl(Map<String, JsonParserConfig> config) {
+		this.config = config;
+	}
 
-    public void config(JSONParser jsonParser);
+	@Override
+	public JsonReader createReader(Reader reader) {
+		return new JsonReaderImpl(reader, config);
+	}
+
+	@Override
+	public JsonReader createReader(InputStream in) {
+		return new JsonReaderImpl(in, config);
+	}
+
+	@Override
+	public JsonReader createReader(InputStream in, Charset charset) {
+		return new JsonReaderImpl(in, charset, config);
+	}
+
+	@Override
+	public Map<String, JsonParserConfig> getConfigInUse() {
+		return config;
+	}
 
 }

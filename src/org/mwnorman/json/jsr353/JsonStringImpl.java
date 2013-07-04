@@ -21,12 +21,44 @@
  ******************************************************************************/
 package org.mwnorman.json.jsr353;
 
-import org.mwnorman.json.JSONParser;
+import javax.json.JsonString;
 
-public interface JsonParserConfig {
+class JsonStringImpl implements JsonString {
 
-    public static final String CONFIG_PARSER_STRICT = "config.parser.strict";
+	private String value;
+	
+    JsonStringImpl(String value) {
+        this.value = value;
+    }
+    
+	@Override
+	public ValueType getValueType() {
+		return ValueType.STRING;
+	}
 
-    public void config(JSONParser jsonParser);
+    @Override
+    public String getString() {
+        return value;
+    }
+
+    @Override
+    public CharSequence getChars() {
+        return value;
+    }
+
+    //need hashCode/equals so that JsonString works properly in JsonObjectImpl which implements Map
+    @Override
+    public int hashCode() {
+        return getString().hashCode();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (!(obj instanceof JsonString)) {
+            return false;
+        }
+        JsonString other = (JsonString)obj;
+        return getString().equals(other.getString());
+    }
 
 }
