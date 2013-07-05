@@ -43,12 +43,14 @@ import javax.json.stream.JsonGenerator;
 import javax.json.stream.JsonGeneratorFactory;
 import javax.json.stream.JsonParser;
 import javax.json.stream.JsonParserFactory;
+import static javax.json.stream.JsonGenerator.PRETTY_PRINTING;
 
 //JavaCC-generated imports
 import org.mwnorman.json.JSONParser;
 import org.mwnorman.json.JSONParser.JsonLocationImpl;
 import org.mwnorman.json.ParseException;
-import static org.mwnorman.json.jsr353.JsonParserConfig.CONFIG_PARSER_STRICT;
+
+//My JSR-353 impls
 import static org.mwnorman.json.jsr353.JsonParserUtil.ioExceptionCreatingParser;
 import static org.mwnorman.json.jsr353.JsonParserUtil.problemCreatingParserFactoryUnsupportedConfig;
 import static org.mwnorman.json.jsr353.JsonParserUtil.parseExceptionCreatingParser;
@@ -72,8 +74,7 @@ public class JsonProviderImpl extends JsonProvider {
 
     protected  void configParser(JSONParser jsonParser) {
         if (config != null) {
-            JsonParserConfig jsonParserConfig = config.get(CONFIG_PARSER_STRICT);
-            if (jsonParserConfig != null) {
+            for (JsonParserConfig jsonParserConfig : config.values()) {
                 jsonParserConfig.config(jsonParser);
             }
         }
@@ -153,7 +154,7 @@ public class JsonProviderImpl extends JsonProvider {
 
     @Override
     public JsonParserFactory createParserFactory(Map<String, ?> config) {
-        //my provider supports a number of configs -
+        //my provider supports a number of configs
         if (config != null) {
             for (Object configValue : config.values()) {
                 if (!(configValue instanceof JsonParserConfig)) {
@@ -242,6 +243,10 @@ public class JsonProviderImpl extends JsonProvider {
 
     public void setConfig(Map<String, JsonParserConfig> config) {
         this.config  = config;
+    }
+
+    static boolean isPrettyPrintingEnabled(Map<String, ?> config) {
+        return config.containsKey(PRETTY_PRINTING);
     }
 
 }

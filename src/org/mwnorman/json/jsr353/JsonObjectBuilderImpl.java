@@ -1,27 +1,51 @@
 /*
- * This software is licensed under the terms of the ISC License.
- * (ISCL http://www.opensource.org/licenses/isc-license.txt
- * It is functionally equivalent to the 2-clause BSD licence,
- * with language "made unnecessary by the Berne convention" removed).
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2011-2013 Mike Norman
+ * Copyright (c) 2012-2013 Oracle and/or its affiliates. All rights reserved.
  *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * The contents of this file are subject to the terms of either the GNU
+ * General Public License Version 2 only ("GPL") or the Common Development
+ * and Distribution License("CDDL") (collectively, the "License").  You
+ * may not use this file except in compliance with the License.  You can
+ * obtain a copy of the License at
+ * https://glassfish.dev.java.net/public/CDDL+GPL_1_1.html
+ * or packager/legal/LICENSE.txt.  See the License for the specific
+ * language governing permissions and limitations under the License.
  *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
- * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER
- * RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE
- * USE OR PERFORMANCE OF THIS SOFTWARE.
+ * When distributing the software, include this License Header Notice in each
+ * file and include the License file at packager/legal/LICENSE.txt.
  *
- ******************************************************************************/
+ * GPL Classpath Exception:
+ * Oracle designates this particular file as subject to the "Classpath"
+ * exception as provided by Oracle in the GPL Version 2 section of the License
+ * file that accompanied this code.
+ *
+ * Modifications:
+ * If applicable, add the following below the License Header, with the fields
+ * enclosed by brackets [] replaced by your own identifying information:
+ * "Portions Copyright [year] [name of copyright owner]"
+ *
+ * Contributor(s):
+ * If you wish your version of this file to be governed by only the CDDL or
+ * only the GPL Version 2, indicate your decision by adding "[Contributor]
+ * elects to include this software in this distribution under the [CDDL or GPL
+ * Version 2] license."  If you don't indicate a single choice of license, a
+ * recipient has the option to distribute your version of this file under
+ * either the CDDL, the GPL Version 2 or to extend the choice of license to
+ * its licensees as provided above.  However, if you add GPL Version 2 code
+ * and therefore, elected the GPL Version 2 license, then the option applies
+ * only if the new code is made subject to such option by the copyright
+ * holder.
+ * 
+ * Mike Norman (mwnorman) elects to include this software in this distribution under the CDDL license.
+ * Portions Copyright 2013 Mike Norman (mwnorman)
+ *     - move to org.mwnorman.json.jsr353 package
+ *     - misc. formating changes
+ */
 package org.mwnorman.json.jsr353;
 
 //javase imports
+import java.io.StringWriter;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.AbstractMap;
@@ -33,151 +57,122 @@ import java.util.Set;
 //JSR-353 imports
 import javax.json.JsonArray;
 import javax.json.JsonArrayBuilder;
-import javax.json.JsonException;
 import javax.json.JsonNumber;
 import javax.json.JsonObject;
 import javax.json.JsonObjectBuilder;
 import javax.json.JsonString;
 import javax.json.JsonValue;
-import javax.json.stream.JsonParser.Event;
-
-//JavaCC-generated imports
-import org.mwnorman.json.JSONParser;
+import javax.json.JsonWriter;
 
 class JsonObjectBuilderImpl implements JsonObjectBuilder {
+    
+    private final Map<String, JsonValue> valueMap;
 
-	protected JSONParser jsonParser = null;
-	protected final Map<String, JsonValue> valueMap = new LinkedHashMap<String, JsonValue>();
-
-	JsonObjectBuilderImpl() {
-	}
-	
-	JsonObjectBuilderImpl(JSONParser jsonParser) {
-		this.jsonParser = jsonParser;
-		buildObject();
-	}
-
-	//TODO
-	private void buildObject() {
-        if (jsonParser.hasNext()) {
-    		eventLoop:while (jsonParser.hasNext()) {
-    			Event e = jsonParser.next();
-    			switch (e) {
-    				case END_OBJECT:
-    					break eventLoop;
-    				default:
-    					break;
-    			}
-    		}
-        }
-        else {
-        	throw new JsonException("JSON parsing error: empty iterator");
-        }
-	}
+    JsonObjectBuilderImpl() {
+        this.valueMap = new LinkedHashMap<String, JsonValue>();
+    }
 
     public JsonObjectBuilder add(String name, JsonValue value) {
-        ensureNotNull(name);
-        ensureNotNull(value);
+        validateName(name);
+        validateValue(value);
         valueMap.put(name, value);
         return this;
     }
 
     public JsonObjectBuilder add(String name, String value) {
-        ensureNotNull(name);
-        ensureNotNull(value);
+        validateName(name);
+        validateValue(value);
         valueMap.put(name, new JsonStringImpl(value));
         return this;
     }
 
     public JsonObjectBuilder add(String name, BigInteger value) {
-        ensureNotNull(name);
-        ensureNotNull(value);
+        validateName(name);
+        validateValue(value);
         valueMap.put(name, new JsonNumberImpl(value));
         return this;
     }
 
     public JsonObjectBuilder add(String name, BigDecimal value) {
-        ensureNotNull(name);
-        ensureNotNull(value);
+        validateName(name);
+        validateValue(value);
         valueMap.put(name, new JsonNumberImpl(value));
         return this;
     }
 
     public JsonObjectBuilder add(String name, int value) {
-        ensureNotNull(name);
+        validateName(name);
         valueMap.put(name, new JsonNumberImpl(value));
         return this;
     }
 
     public JsonObjectBuilder add(String name, long value) {
-        ensureNotNull(name);
+        validateName(name);
         valueMap.put(name, new JsonNumberImpl(value));
         return this;
     }
 
     public javax.json.JsonObjectBuilder add(String name, double value) {
-        ensureNotNull(name);
+        validateName(name);
         valueMap.put(name, new JsonNumberImpl(value));
         return this;
     }
 
     public JsonObjectBuilder add(String name, boolean value) {
-        ensureNotNull(name);
+        validateName(name);
         valueMap.put(name, value ? JsonValue.TRUE : JsonValue.FALSE);
         return this;
     }
 
     public JsonObjectBuilder addNull(String name) {
-        ensureNotNull(name);
+        validateName(name);
         valueMap.put(name, JsonValue.NULL);
         return this;
     }
 
     public JsonObjectBuilder add(String name, JsonObjectBuilder builder) {
-        ensureNotNull(name);
+        validateName(name);
         if (builder == null) {
             throw new NullPointerException(
-                    "Object builder that is used to create a value in JsonObject's name/value pair cannot be null");
+                "Object builder that is used to create a value in JsonObject's name/value pair cannot be null");
         }
         valueMap.put(name, builder.build());
         return this;
     }
 
     public JsonObjectBuilder add(String name, JsonArrayBuilder builder) {
-        ensureNotNull(name);
+        validateName(name);
         if (builder == null) {
             throw new NullPointerException(
-                    "Array builder that is used to create a value in JsonObject's name/value pair cannot be null");
+                "Array builder that is used to create a value in JsonObject's name/value pair cannot be null");
         }
         valueMap.put(name, builder.build());
         return this;
     }
 
-    /*
-     * don't allow modification to valueMap: wrap it in an unmodifiableMap
-     */
-	@Override
-	public JsonObject build() {
-        return new JsonObjectImpl(Collections.unmodifiableMap(valueMap));    
-	}
+    public JsonObject build() {
+        Map<String, JsonValue> snapshot = new LinkedHashMap<String, JsonValue>(valueMap);
+        return new JsonObjectImpl(Collections.unmodifiableMap(snapshot));
+    }
 
-    private void ensureNotNull(Object object) {
-        if (object == null) {
-            throw new NullPointerException("JsonObject's key/value cannot be null");
+    private void validateName(String name) {
+        if (name == null) {
+            throw new NullPointerException("Name in JsonObject's name/value pair cannot be null");
         }
     }
-	
-	static class JsonObjectImpl extends AbstractMap<String, JsonValue> implements JsonObject {
 
-		protected Map<String, JsonValue> valueMap = new LinkedHashMap<String, JsonValue>();
-		
-		JsonObjectImpl(Map<String, JsonValue> valueMap) {
-			this.valueMap = valueMap;
-		}
+    private void validateValue(Object value) {
+        if (value == null) {
+            throw new NullPointerException("Value in JsonObject's name/value pair cannot be null");
+        }
+    }
 
-        @Override
-        public ValueType getValueType() {
-            return ValueType.OBJECT;
+    private static final class JsonObjectImpl extends AbstractMap<String, JsonValue> implements
+        JsonObject {
+        private final Map<String, JsonValue> valueMap; // unmodifiable
+
+        JsonObjectImpl(Map<String, JsonValue> valueMap) {
+            this.valueMap = valueMap;
         }
 
         @Override
@@ -232,9 +227,9 @@ class JsonObjectBuilderImpl implements JsonObjectBuilder {
 
         @Override
         public boolean getBoolean(String name) {
-            JsonValue value = valueMap.get(name);
+            JsonValue value = get(name);
             if (value == null) {
-                throw new NullPointerException(String.format("key '%s' not found", name));
+                throw new NullPointerException();
             }
             else if (value == JsonValue.TRUE) {
                 return true;
@@ -243,10 +238,10 @@ class JsonObjectBuilderImpl implements JsonObjectBuilder {
                 return false;
             }
             else {
-                throw new ClassCastException(String.format("key '%s' not a boolean", name));
+                throw new ClassCastException();
             }
         }
-		
+
         @Override
         public boolean getBoolean(String name, boolean defaultValue) {
             try {
@@ -259,15 +254,27 @@ class JsonObjectBuilderImpl implements JsonObjectBuilder {
 
         @Override
         public boolean isNull(String name) {
-            return get(name) == JsonValue.NULL;
+            return get(name).equals(JsonValue.NULL);
         }
 
-        //Map APIs
-        
-		@Override
-		public Set<java.util.Map.Entry<String, JsonValue>> entrySet() {
-			return valueMap.entrySet();
-		}
-	}
+        @Override
+        public ValueType getValueType() {
+            return ValueType.OBJECT;
+        }
+
+        @Override
+        public Set<Entry<String, JsonValue>> entrySet() {
+            return valueMap.entrySet();
+        }
+
+        @Override
+        public String toString() {
+            StringWriter sw = new StringWriter();
+            JsonWriter jw = new JsonWriterImpl(sw);
+            jw.write(this);
+            jw.close();
+            return sw.toString();
+        }
+    }
 
 }

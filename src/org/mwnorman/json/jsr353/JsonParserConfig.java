@@ -25,8 +25,16 @@ import org.mwnorman.json.JSONParser;
 
 public interface JsonParserConfig {
 
-    public static final String CONFIG_PARSER_STRICT = "config.parser.strict";
+    public static final String CONFIG_PARSER_STRICT = "org.mwnorman.json.jsr353.parser.strict";
 
     public void config(JSONParser jsonParser);
 
+    public static enum PrettyPrintingConfig implements JsonParserConfig {
+        PRETTY_PRINTING_ON, PRETTY_PRINTING_OFF;
+
+        @Override
+        public void config(JSONParser jsonParser) {
+        }
+        
+    }
 }

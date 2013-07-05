@@ -40,6 +40,10 @@ import static javax.json.stream.JsonParser.Event.START_OBJECT;
 //JavaCC-generated imports
 import org.mwnorman.json.JSONParser;
 
+//My JSR-353 impls
+import static org.mwnorman.json.jsr353.JsonParserUtil.buildJsonArrayFromJSONParser;
+import static org.mwnorman.json.jsr353.JsonParserUtil.buildJsonObjectFromJSONParser;
+
 public class JsonReaderImpl implements JsonReader {
 
 	protected Map<String, JsonParserConfig> config = null;
@@ -99,7 +103,7 @@ public class JsonReaderImpl implements JsonReader {
         if (jsonParser.hasNext()) {
             Event e = jsonParser.peek();
             if (e == START_OBJECT) {
-            	jsonObject = new JsonObjectBuilderImpl(jsonParser).build();
+            	jsonObject = buildJsonObjectFromJSONParser(jsonParser);
             }
             else {
                 throw new JsonException(String.format("JSON parsing error: no START_OBJECT event (parsing event = %s",e));
@@ -117,7 +121,7 @@ public class JsonReaderImpl implements JsonReader {
         if (jsonParser.hasNext()) {
             Event e = jsonParser.peek();
             if (e == START_ARRAY) {
-            	jsonArray = new JsonArrayBuilderImpl(jsonParser).build();
+                jsonArray = buildJsonArrayFromJSONParser(jsonParser);
             }
             else {
                 throw new JsonException(String.format("JSON parsing error: no START_ARRAY event (parsing event = %s",e));
@@ -131,6 +135,7 @@ public class JsonReaderImpl implements JsonReader {
 
 	@Override
 	public void close() {
+		jsonParser.close();
 	}
 
 }

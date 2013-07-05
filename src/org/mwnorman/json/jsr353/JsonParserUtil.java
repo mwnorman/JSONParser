@@ -26,12 +26,15 @@ import java.io.IOException;
 import java.text.MessageFormat;
 
 //JSR-353 imports
+import javax.json.JsonArray;
 import javax.json.JsonException;
+import javax.json.JsonObject;
 import javax.json.stream.JsonLocation;
 import javax.json.stream.JsonParsingException;
 
 //JavaCC-generated imports
 import org.mwnorman.json.ParseException;
+import org.mwnorman.json.JSONParser;
 import static org.mwnorman.json.JSONParser.NULL_LOCATION;
 
 public final class JsonParserUtil {
@@ -42,36 +45,44 @@ public final class JsonParserUtil {
         return STRICT_PARSER_CONFIG;
     }
 
-    public static final String PARSE_EXCEPTION_CREATING_PARSER =
+    static final String PARSE_EXCEPTION_CREATING_PARSER =
         "Parse exception occurred trying to create a Json Parser.\nException message: {0}";
 
-    public static final String IO_EXCEPTION_CREATING_PARSER =
+    static final String IO_EXCEPTION_CREATING_PARSER =
         "I/O exception occurred trying to create a Json Parser.\nException message: {0}";
 
-    public static final String PROBLEM_CREATING_PARSER_FACTORY_UNSUPPORTED_CONFIG =
+    static final String PROBLEM_CREATING_PARSER_FACTORY_UNSUPPORTED_CONFIG =
         "Problem creating JsonParserFactory: Unsupported config provided";
 
-    public static JsonParsingException parseExceptionCreatingParser(String exceptionMessage,
+    static JsonParsingException parseExceptionCreatingParser(String exceptionMessage,
         ParseException parseException) {
         return parseExceptionCreatingParser(exceptionMessage, parseException, NULL_LOCATION);
     }
 
-    public static JsonParsingException parseExceptionCreatingParser(String exceptionMessage,
+    static JsonParsingException parseExceptionCreatingParser(String exceptionMessage,
         ParseException parseException, JsonLocation jsonLocation) {
         return new JsonParsingException(
             MessageFormat.format(PARSE_EXCEPTION_CREATING_PARSER, exceptionMessage),
             parseException, jsonLocation);
     }
 
-    public static JsonParsingException ioExceptionCreatingParser(String exceptionMessage,
+    static JsonParsingException ioExceptionCreatingParser(String exceptionMessage,
         IOException ioException) {
         return new JsonParsingException(
             MessageFormat.format(IO_EXCEPTION_CREATING_PARSER, exceptionMessage),
             ioException, NULL_LOCATION);
     }
 
-    public static JsonException problemCreatingParserFactoryUnsupportedConfig() {
+    static JsonException problemCreatingParserFactoryUnsupportedConfig() {
         return new JsonException(PROBLEM_CREATING_PARSER_FACTORY_UNSUPPORTED_CONFIG);
+    }
+    
+    static final JsonArray buildJsonArrayFromJSONParser(JSONParser jsonParser) {
+        return null;
+    }
+    
+    static final JsonObject buildJsonObjectFromJSONParser(JSONParser jsonParser) {
+        return null;
     }
 
 }
