@@ -529,6 +529,7 @@ void value():{Token t = null;EventWrapper ew = null;}
       |  t=<NUMBER>
            {
              ew = new EventWrapper(Event.VALUE_NUMBER);
+             ew.s = t.image;
              ew.location = new JsonLocationImpl(t);
              ew.type = EventWrapper.NumType.TYPE_BIGDECIMAL;
              try {

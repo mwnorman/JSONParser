@@ -26,19 +26,17 @@ import java.io.IOException;
 import java.text.MessageFormat;
 
 //JSR-353 imports
-import javax.json.JsonArray;
 import javax.json.JsonException;
-import javax.json.JsonObject;
 import javax.json.stream.JsonLocation;
 import javax.json.stream.JsonParsingException;
 
 //JavaCC-generated imports
 import org.mwnorman.json.ParseException;
-import org.mwnorman.json.JSONParser;
+
 import static org.mwnorman.json.JSONParser.NULL_LOCATION;
 
 public final class JsonParserUtil {
-
+    
     static JsonParserConfig STRICT_PARSER_CONFIG = new StrictParserConfig();
 
     public final static JsonParserConfig getStrictConfig() {
@@ -75,14 +73,6 @@ public final class JsonParserUtil {
 
     static JsonException problemCreatingParserFactoryUnsupportedConfig() {
         return new JsonException(PROBLEM_CREATING_PARSER_FACTORY_UNSUPPORTED_CONFIG);
-    }
-    
-    static final JsonArray buildJsonArrayFromJSONParser(JSONParser jsonParser) {
-        return null;
-    }
-    
-    static final JsonObject buildJsonObjectFromJSONParser(JSONParser jsonParser) {
-        return null;
     }
 
 }

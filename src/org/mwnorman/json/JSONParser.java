@@ -545,6 +545,7 @@ void value():{}
              jjtree.closeNodeScope(jjtn000, true);
              jjtc000 = false;
              ew = new EventWrapper(Event.VALUE_NUMBER);
+             ew.s = t.image;
              ew.location = new JsonLocationImpl(t);
              ew.type = EventWrapper.NumType.TYPE_BIGDECIMAL;
              try {

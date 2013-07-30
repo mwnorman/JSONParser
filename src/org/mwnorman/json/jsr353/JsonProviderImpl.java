@@ -186,12 +186,12 @@ public class JsonProviderImpl extends JsonProvider {
 
     @Override
     public JsonReader createReader(Reader reader) {
-        return null;
+        return new JsonReaderImpl(reader, config);
     }
 
     @Override
     public JsonReader createReader(InputStream in) {
-        return null;
+        return new JsonReaderImpl(in, config);
     }
 
     @Override

@@ -24,6 +24,7 @@ package org.mwnorman.json.test;
 //javase imports
 import java.io.ByteArrayInputStream;
 import java.io.PrintWriter;
+import java.io.Reader;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.math.BigDecimal;
@@ -31,14 +32,21 @@ import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.Map;
 
+
+
 //java eXtension imports (JSR-353)
 import javax.json.Json;
+import javax.json.JsonArray;
+import javax.json.JsonObject;
+import javax.json.JsonReader;
+import javax.json.JsonReaderFactory;
 import javax.json.JsonValue;
 import javax.json.spi.JsonProvider;
 import javax.json.stream.JsonParser;
 import javax.json.stream.JsonParserFactory;
 import javax.json.stream.JsonParser.Event;
 import javax.json.stream.JsonParsingException;
+
 import static javax.json.stream.JsonParser.Event.END_ARRAY;
 import static javax.json.stream.JsonParser.Event.END_OBJECT;
 import static javax.json.stream.JsonParser.Event.KEY_NAME;
@@ -50,15 +58,20 @@ import static javax.json.stream.JsonParser.Event.VALUE_NUMBER;
 import static javax.json.stream.JsonParser.Event.VALUE_STRING;
 import static javax.json.stream.JsonParser.Event.VALUE_TRUE;
 
+
+
 //JUnit4 imports
 import org.junit.BeforeClass;
 import org.junit.Test;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
+
+
 
 //my parser imports
 import org.mwnorman.json.JSONParser;
@@ -891,6 +904,93 @@ public class JSONParserTestSuite {
         JsonParser parser = Json.createParser(new StringReader("[]"));
         testEmptyArray(parser);
         parser.close();
+    }
+    
+    static final String WIKI_JSON = 
+        "{" +
+            "\"firstName\": \"John\"," +
+            "\"lastName\": \"Smith\"," +
+            "\"age\": 25," +
+            "\"address\": {" +
+                "\"streetAddress\": \"21 2nd Street\"," +
+                "\"city\": \"New York\"," +
+                "\"state\": \"NY\"," +
+                "\"postalCode\": \"10021\"" +
+            "}," +
+            "\"phoneNumber\": [" +
+                "{" +
+                  "\"type\": \"home\"," +
+                  "\"number\": \"212 555-1234\"" +
+                "}," +
+                "{" +
+                  "\"type\": \"fax\"," +
+                  "\"number\": \"646 555-4567\"" +
+                "}" +
+            "]" +
+       "}";
+    static JsonObject readPerson() throws Exception {
+        Reader wikiReader = new StringReader(WIKI_JSON);
+        JsonReader reader = Json.createReader(wikiReader);
+        JsonValue value = reader.readObject();
+        reader.close();
+        assertTrue(value instanceof JsonObject);
+        return (JsonObject) value;
+    }
+    static void testPerson(JsonObject person) {
+        assertEquals(5, person.size());
+        assertEquals("John", person.getString("firstName"));
+        assertEquals("Smith", person.getString("lastName"));
+        assertEquals(25, person.getJsonNumber("age").intValue());
+        assertEquals(25, person.getInt("age"));
+
+        JsonObject address = person.getJsonObject("address");
+        assertEquals(4, address.size());
+        assertEquals("21 2nd Street", address.getString("streetAddress"));
+        assertEquals("New York", address.getString("city"));
+        assertEquals("NY", address.getString("state"));
+        assertEquals("10021", address.getString("postalCode"));
+
+        JsonArray phoneNumber = person.getJsonArray("phoneNumber");
+        assertEquals(2, phoneNumber.size());
+        JsonObject home = phoneNumber.getJsonObject(0);
+        assertEquals(2, home.size());
+        assertEquals("home", home.getString("type"));
+        assertEquals("212 555-1234", home.getString("number"));
+        assertEquals("212 555-1234", home.getString("number"));
+
+        JsonObject fax = phoneNumber.getJsonObject(1);
+        assertEquals(2, fax.size());
+        assertEquals("fax", fax.getString("type"));
+        assertEquals("646 555-4567", fax.getString("number"));
+        assertEquals("646 555-4567", fax.getString("number"));
+    }
+    
+    @Test
+    public void testObject() throws Exception {
+        JsonObject person = readPerson();
+        testPerson(person);
+    }
+    
+    @Test
+    public void testEscapedString3() throws Exception {
+        // u00ff is escaped once, not escaped once
+        JsonReader reader = Json.createReader(new StringReader(ESCPD_STR1));
+        JsonArray array = reader.readArray();
+        reader.close();
+        String str = array.getString(0);
+        assertEquals("\u0000\u00ff\u00ff", str);
+    }
+    
+    @Test
+    public void testUnknownFeature() throws Exception {
+        Map<String, Object> config = new HashMap<String, Object>();
+        config.put("foo", true);
+        JsonReaderFactory factory = Json.createReaderFactory(config);
+        JsonReader reader = factory.createReader(new StringReader("{}"));
+        Map<String, ?> config1 = factory.getConfigInUse();
+        if (config1.size() > 0) {
+            fail("Shouldn't have any config in use");
+        }
     }
 
     @Test
