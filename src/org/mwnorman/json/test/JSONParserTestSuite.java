@@ -32,8 +32,6 @@ import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.Map;
 
-
-
 //java eXtension imports (JSR-353)
 import javax.json.Json;
 import javax.json.JsonArray;
@@ -46,7 +44,6 @@ import javax.json.stream.JsonParser;
 import javax.json.stream.JsonParserFactory;
 import javax.json.stream.JsonParser.Event;
 import javax.json.stream.JsonParsingException;
-
 import static javax.json.stream.JsonParser.Event.END_ARRAY;
 import static javax.json.stream.JsonParser.Event.END_OBJECT;
 import static javax.json.stream.JsonParser.Event.KEY_NAME;
@@ -58,20 +55,16 @@ import static javax.json.stream.JsonParser.Event.VALUE_NUMBER;
 import static javax.json.stream.JsonParser.Event.VALUE_STRING;
 import static javax.json.stream.JsonParser.Event.VALUE_TRUE;
 
-
-
 //JUnit4 imports
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
-
-
 
 //my parser imports
 import org.mwnorman.json.JSONParser;
@@ -981,12 +974,13 @@ public class JSONParserTestSuite {
         assertEquals("\u0000\u00ff\u00ff", str);
     }
     
+    @Ignore
     @Test
     public void testUnknownFeature() throws Exception {
         Map<String, Object> config = new HashMap<String, Object>();
         config.put("foo", true);
         JsonReaderFactory factory = Json.createReaderFactory(config);
-        JsonReader reader = factory.createReader(new StringReader("{}"));
+        //JsonReader reader = factory.createReader(new StringReader("{}"));
         Map<String, ?> config1 = factory.getConfigInUse();
         if (config1.size() > 0) {
             fail("Shouldn't have any config in use");
